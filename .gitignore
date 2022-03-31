@@ -17,4 +17,3 @@ gen/
 stanza-plugins/
 **/plugins
 **/.kitchen
-.idea/
