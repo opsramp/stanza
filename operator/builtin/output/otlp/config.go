@@ -3,6 +3,9 @@ package otlp
 import (
 	"time"
 
+	"github.com/observiq/stanza/operator/buffer"
+	"github.com/observiq/stanza/operator/flusher"
+
 	"github.com/observiq/stanza/operator/helper"
 )
 
@@ -25,8 +28,10 @@ type Headers struct {
 // OtlpConfig is the configuration of an otlp output operation.
 type OtlpConfig struct {
 	helper.OutputConfig `yaml:",inline"`
-	Endpoint            string `json:"endpoint" yaml:"endpoint"`
-	Insecure            string `json:"insecure" yaml:"insecure"`
+	BufferConfig        buffer.Config  `json:"buffer,omitempty" yaml:"buffer,omitempty"`
+	FlusherConfig       flusher.Config `json:"flusher,omitempty" yaml:"flusher,omitempty"`
+	Endpoint            string         `json:"endpoint" yaml:"endpoint"`
+	Insecure            string         `json:"insecure" yaml:"insecure"`
 	Headers             `json:"headers" yaml:"headers"`
 	RetrySettings       `json:"retry_on_failure" yaml:"retry_on_failure"`
 	Timeout             time.Duration `json:"timeout" yaml:"timeout"`
