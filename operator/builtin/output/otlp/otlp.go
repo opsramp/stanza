@@ -2,7 +2,6 @@ package otlp
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/observiq/stanza/operator/flusher"
@@ -22,46 +21,6 @@ func init() {
 }
 
 const authorization = "authorization"
-
-// NewOTLPConfig creates a new otlp output config with default values
-func NewOTLPConfig(operatorID string) *OtlpConfig {
-	return &OtlpConfig{
-		OutputConfig:  helper.NewOutputConfig(operatorID, "otlp_output"),
-		BufferConfig:  buffer.NewConfig(),
-		FlusherConfig: flusher.NewConfig(),
-	}
-}
-
-// Build will build a otlp output operator.
-func (c OtlpConfig) Build(bc operator.BuildContext) ([]operator.Operator, error) {
-	outputOperator, err := c.OutputConfig.Build(bc)
-	if err != nil {
-		return nil, err
-	}
-
-	if c.Endpoint == "" {
-		return nil, fmt.Errorf("operator must provide an endpoint")
-	}
-
-	buffer, err := c.BufferConfig.Build(bc, c.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	flusher := c.FlusherConfig.Build(bc.Logger.SugaredLogger)
-	ctx, cancel := context.WithCancel(context.Background())
-
-	otlpOutput := &OtlpOutput{
-		OutputOperator: outputOperator,
-		config:         c,
-		buffer:         buffer,
-		flusher:        flusher,
-		ctx:            ctx,
-		cancel:         cancel,
-	}
-
-	return []operator.Operator{otlpOutput}, nil
-}
 
 // OtlpOutput is an operator that writes logs to a service.
 type OtlpOutput struct {
@@ -152,5 +111,13 @@ func (o *OtlpOutput) flush(ctx context.Context) {
 }
 
 func (o *OtlpOutput) flushChunk(ctx context.Context) error {
+	/*entries, clearer, err := o.buffer.ReadChunk(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read entries from buffer: %w", err)
+	}*/
+
+	//chunkID := uuid.New()
+	//o.Debugw("Read entries from buffer", "entries", len(entries), "chunk_id", chunkID)
+
 	return nil
 }
