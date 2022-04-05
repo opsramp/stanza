@@ -2,6 +2,7 @@ package otlp
 
 import (
 	"fmt"
+
 	"github.com/observiq/stanza/entry"
 	"go.opentelemetry.io/collector/model/otlpgrpc"
 	"go.opentelemetry.io/collector/model/pdata"
@@ -9,7 +10,6 @@ import (
 
 func buildProtoRequest(entries []*entry.Entry) otlpgrpc.LogsRequest {
 	logRequest := otlpgrpc.NewLogsRequest()
-
 	pLogs := pdata.NewLogs()
 	rl := pLogs.ResourceLogs().AppendEmpty()
 	ill := rl.InstrumentationLibraryLogs().AppendEmpty()
@@ -18,7 +18,6 @@ func buildProtoRequest(entries []*entry.Entry) otlpgrpc.LogsRequest {
 		logRec := ill.LogRecords().AppendEmpty()
 		convertEntryToLogRecord(entry, logRec)
 	}
-
 	logRequest.SetLogs(pLogs)
 	return logRequest
 

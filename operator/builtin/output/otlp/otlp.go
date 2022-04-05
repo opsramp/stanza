@@ -2,10 +2,14 @@ package otlp
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
-	"github.com/observiq/stanza/operator/flusher"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/metadata"
+
+	"github.com/observiq/stanza/operator/flusher"
 
 	"github.com/observiq/stanza/entry"
 	"github.com/observiq/stanza/operator"
@@ -73,20 +77,7 @@ func (o *OtlpOutput) Stop() error {
 
 // Process will write an entry to the endpoint.
 func (o *OtlpOutput) Process(ctx context.Context, entry *entry.Entry) error {
-
 	return o.buffer.Add(ctx, entry)
-
-	/*
-		md := metadata.New(map[string]string{authorization: o.config.Authorization})
-
-		ctx = metadata.NewOutgoingContext(ctx, md)
-
-		logRequest := otlpgrpc.NewLogsRequest()
-		logRequest.SetLogs(convert(entry))
-		_, err := o.logsClient.Export(ctx, logRequest)
-
-		return err
-	*/
 }
 
 func (o *OtlpOutput) flush(ctx context.Context) {
@@ -111,13 +102,33 @@ func (o *OtlpOutput) flush(ctx context.Context) {
 }
 
 func (o *OtlpOutput) flushChunk(ctx context.Context) error {
-	/*entries, clearer, err := o.buffer.ReadChunk(ctx)
+	entries, clearer, err := o.buffer.ReadChunk(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to read entries from buffer: %w", err)
-	}*/
+	}
 
-	//chunkID := uuid.New()
-	//o.Debugw("Read entries from buffer", "entries", len(entries), "chunk_id", chunkID)
+	entriesLen := len(entries)
+	chunkID := uuid.New()
+	o.Debugw("Read entries from buffer, ", "entries: ", entriesLen, ", chunk_id: ", chunkID)
+	logRequest := buildProtoRequest(entries)
+	o.Debugw("Created export requests ", "with ", entriesLen, " entries, chunk_id: ", chunkID)
+	fmt.Println(logRequest, clearer)
+
+	flushFunc := func(ctx context.Context) error {
+		md := metadata.New(map[string]string{authorization: o.config.Authorization})
+		ctx = metadata.NewOutgoingContext(ctx, md)
+		_, err := o.logsClient.Export(ctx, logRequest)
+
+		if err != nil {
+			o.Debugw("Failed to send requests ", "chunk_id", chunkID, zap.Error(err))
+			return err
+		}
+
+		o.Debugw("Marking entries as flushed,", "chunk_id: ", chunkID)
+		return clearer.MarkAllAsFlushed()
+	}
+	o.flusher.Do(flushFunc)
+	o.Debugw("Submitted requests to the flusher", "requests", entriesLen)
 
 	return nil
 }
