@@ -70,13 +70,6 @@ func insertToAttributeVal(value interface{}, dest pdata.AttributeValue) {
 	}
 }
 
-func insertToAttributeMap(obsMap map[string]string, dest pdata.AttributeMap) {
-	dest.EnsureCapacity(len(obsMap))
-	for k, v := range obsMap {
-		dest.InsertString(k, v)
-	}
-}
-
 func toAttributeArray(obsArr []interface{}) pdata.AttributeValue {
 	arrVal := pdata.NewAttributeValueArray()
 	arr := arrVal.SliceVal()

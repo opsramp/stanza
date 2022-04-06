@@ -67,17 +67,17 @@ func (o *OtlpOutput) Start() error {
 	return nil
 }
 
+// Process will write an entry to the endpoint.
+func (o *OtlpOutput) Process(ctx context.Context, entry *entry.Entry) error {
+	return o.buffer.Add(ctx, entry)
+}
+
 // Stop will close the connection.
 func (o *OtlpOutput) Stop() error {
 	o.cancel()
 	o.wg.Wait()
 	o.flusher.Stop()
 	return o.clientConn.Close()
-}
-
-// Process will write an entry to the endpoint.
-func (o *OtlpOutput) Process(ctx context.Context, entry *entry.Entry) error {
-	return o.buffer.Add(ctx, entry)
 }
 
 func (o *OtlpOutput) flush(ctx context.Context) {
@@ -112,7 +112,6 @@ func (o *OtlpOutput) flushChunk(ctx context.Context) error {
 	o.Debugw("Read entries from buffer, ", "entries: ", entriesLen, ", chunk_id: ", chunkID)
 	logRequest := buildProtoRequest(entries)
 	o.Debugw("Created export requests ", "with ", entriesLen, " entries, chunk_id: ", chunkID)
-	fmt.Println(logRequest, clearer)
 
 	flushFunc := func(ctx context.Context) error {
 		md := metadata.New(map[string]string{authorization: o.config.Authorization})

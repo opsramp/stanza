@@ -19,9 +19,9 @@ var maxElapsedTime = time.Hour
 type Config struct {
 	// MaxConcurrent is the maximum number of goroutines flushing entries concurrently.
 	// Defaults to 16.
-	MaxConcurrent int `json:"max_concurrent" yaml:"max_concurrent"`
-
-	// TODO configurable retry
+	MaxConcurrent    int           `json:"max_concurrent" yaml:"max_concurrent"`
+	MaxRetryInterval time.Duration `json:"max_retry_interval" yaml:"max_retry_interval"`
+	MaxElapsedTime   time.Duration `json:"max_elapsed_time" yaml:"max_elapsed_time"`
 }
 
 // NewConfig creates a new default flusher config
