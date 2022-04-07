@@ -3,14 +3,21 @@ package otlp
 import (
 	"context"
 	"fmt"
+	"sync"
+
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+	"google.golang.org/grpc/metadata"
+
+	"github.com/observiq/stanza/operator/flusher"
 
 	"github.com/observiq/stanza/entry"
 	"github.com/observiq/stanza/operator"
+	"github.com/observiq/stanza/operator/buffer"
 	"github.com/observiq/stanza/operator/helper"
 	"go.opentelemetry.io/collector/model/otlpgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 )
 
 func init() {
@@ -19,38 +26,18 @@ func init() {
 
 const authorization = "authorization"
 
-// NewOTLPConfig creates a new otlp output config with default values
-func NewOTLPConfig(operatorID string) *OtlpConfig {
-	return &OtlpConfig{
-		OutputConfig: helper.NewOutputConfig(operatorID, "otlp_output"),
-	}
-}
-
-// Build will build a otlp output operator.
-func (c OtlpConfig) Build(context operator.BuildContext) ([]operator.Operator, error) {
-	outputOperator, err := c.OutputConfig.Build(context)
-	if err != nil {
-		return nil, err
-	}
-
-	if c.Endpoint == "" {
-		return nil, fmt.Errorf("must provide an endpoint")
-	}
-
-	otlpOutput := &OtlpOutput{
-		OutputOperator: outputOperator,
-		config:         c,
-	}
-
-	return []operator.Operator{otlpOutput}, nil
-}
-
 // OtlpOutput is an operator that writes logs to a service.
 type OtlpOutput struct {
 	helper.OutputOperator
 	config     OtlpConfig
+	buffer     buffer.Buffer
+	flusher    *flusher.Flusher
 	logsClient otlpgrpc.LogsClient
 	clientConn *grpc.ClientConn
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
 }
 
 // Start will open the connection.
@@ -74,22 +61,71 @@ func (o *OtlpOutput) Start() error {
 		return err
 	}
 	o.logsClient = otlpgrpc.NewLogsClient(o.clientConn)
-	return nil
-}
 
-// Stop will close the connection.
-func (o *OtlpOutput) Stop() error {
-	return o.clientConn.Close()
+	o.flush()
+	return nil
 }
 
 // Process will write an entry to the endpoint.
 func (o *OtlpOutput) Process(ctx context.Context, entry *entry.Entry) error {
-	md := metadata.New(map[string]string{authorization: o.config.Authorization})
-	ctx = metadata.NewOutgoingContext(ctx, md)
-	
-	logRequest := otlpgrpc.NewLogsRequest()
-	logRequest.SetLogs(convert(entry))
-	_, err := o.logsClient.Export(ctx, logRequest)
+	return o.buffer.Add(ctx, entry)
+}
 
-	return err
+// Stop will close the connection.
+func (o *OtlpOutput) Stop() error {
+	o.cancel()
+	o.wg.Wait()
+	o.flusher.Stop()
+	return o.clientConn.Close()
+}
+
+func (o *OtlpOutput) flush() {
+	o.wg.Add(1)
+	go func() {
+		defer o.wg.Done()
+		defer o.Debug("flusher stopped")
+		for {
+			select {
+			case <-o.ctx.Done():
+				o.Debug("context completed while flushing")
+				return
+			default:
+			}
+
+			err := o.flushChunk()
+			if err != nil {
+				o.Errorw("failed to flush from buffer", zap.Error(err))
+			}
+		}
+	}()
+}
+
+func (o *OtlpOutput) flushChunk() error {
+	entries, clearer, err := o.buffer.ReadChunk(o.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read entries from buffer: %w", err)
+	}
+
+	entriesLen := len(entries)
+	chunkID := uuid.New()
+	o.Debugw("Read entries from buffer, ", "entries: ", entriesLen, ", chunk_id: ", chunkID)
+	logRequest := buildProtoRequest(entries)
+	o.Debugw("Created export requests ", "with ", entriesLen, " entries, chunk_id: ", chunkID)
+	flushFunc := func(ctx context.Context) error {
+		md := metadata.New(map[string]string{authorization: o.config.Authorization})
+		ctx = metadata.NewOutgoingContext(ctx, md)
+		_, err := o.logsClient.Export(ctx, logRequest)
+
+		if err != nil {
+			o.Debugw("Failed to send requests ", "chunk_id", chunkID, zap.Error(err))
+			return err
+		}
+
+		o.Debugw("Marking entries as flushed,", "chunk_id: ", chunkID)
+		return clearer.MarkAllAsFlushed()
+	}
+	o.flusher.Do(flushFunc)
+	o.Debugw("Submitted requests to the flusher", "requests", entriesLen)
+
+	return nil
 }

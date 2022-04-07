@@ -102,6 +102,11 @@ build:
 		-o ../../artifacts/stanza_$(GOOS)_$(GOARCH) \
 		$(TAGS) .)
 
+.PHONY: build_journld
+build_journald:
+	docker build --tag journald_demo -f Dockerfile_journald .
+
+
 .PHONY: install
 install:
 	(cd ./cmd/stanza && CGO_ENABLED=0 go install .)

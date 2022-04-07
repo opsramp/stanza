@@ -4,30 +4,31 @@ import (
 	"fmt"
 
 	"github.com/observiq/stanza/entry"
+	"go.opentelemetry.io/collector/model/otlpgrpc"
 	"go.opentelemetry.io/collector/model/pdata"
 )
 
-// Convert converts entry.Entry into provided pdata.LogRecord.
-func convert(ent *entry.Entry) pdata.Logs {
+func buildProtoRequest(entries []*entry.Entry) otlpgrpc.LogsRequest {
+	logRequest := otlpgrpc.NewLogsRequest()
 	pLogs := pdata.NewLogs()
-	logs := pLogs.ResourceLogs()
+	rl := pLogs.ResourceLogs().AppendEmpty()
+	ill := rl.InstrumentationLibraryLogs().AppendEmpty()
 
-	rls := logs.AppendEmpty()
+	for _, entry := range entries {
+		logRec := ill.LogRecords().AppendEmpty()
+		convertEntryToLogRecord(entry, logRec)
+	}
+	logRequest.SetLogs(pLogs)
+	return logRequest
 
-	resource := rls.Resource()
-	insertToAttributeMap(ent.Resource, resource.Attributes())
-
-	ills := rls.InstrumentationLibraryLogs().AppendEmpty()
-	lr := ills.LogRecords().AppendEmpty()
-	convertInto(ent, lr)
-	return pLogs
 }
 
-func convertInto(ent *entry.Entry, dest pdata.LogRecord) {
-	dest.SetTimestamp(pdata.NewTimestampFromTime(ent.Timestamp))
-	dest.SetSeverityNumber(sevMap[ent.Severity])
-	dest.SetSeverityText(sevTextMap[ent.Severity])
-	insertToAttributeVal(ent.Record, dest.Body())
+// Convert converts entry.Entry into provided pdata.LogRecord.
+func convertEntryToLogRecord(entry *entry.Entry, dest pdata.LogRecord) {
+	dest.SetTimestamp(pdata.NewTimestampFromTime(entry.Timestamp))
+	dest.SetSeverityNumber(sevMap[entry.Severity])
+	dest.SetSeverityText(sevTextMap[entry.Severity])
+	insertToAttributeVal(entry.Record, dest.Body())
 }
 
 func insertToAttributeVal(value interface{}, dest pdata.AttributeValue) {
@@ -66,13 +67,6 @@ func insertToAttributeVal(value interface{}, dest pdata.AttributeValue) {
 		toAttributeArray(t).CopyTo(dest)
 	default:
 		dest.SetStringVal(fmt.Sprintf("%v", t))
-	}
-}
-
-func insertToAttributeMap(obsMap map[string]string, dest pdata.AttributeMap) {
-	dest.EnsureCapacity(len(obsMap))
-	for k, v := range obsMap {
-		dest.InsertString(k, v)
 	}
 }
 

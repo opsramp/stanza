@@ -19,27 +19,27 @@ type AgentService struct {
 
 // Start will start the stanza agent.
 func (a *AgentService) Start(_ service.Service) error {
-	a.agent.Info("Starting stanza agent")
+	a.agent.Info("Starting Opsramp agent")
 	if err := a.agent.Start(); err != nil {
-		a.agent.Errorw("Failed to start stanza agent", zap.Any("error", err))
+		a.agent.Errorw("Failed to start Opsramp agent", zap.Any("error", err))
 		a.cancel()
 		return nil
 	}
 
-	a.agent.Info("Stanza agent started")
+	a.agent.Info("Opsramp agent started")
 	return nil
 }
 
-// Stop will stop the stanza agent.
+// Stop will stop the opsramp agent.
 func (a *AgentService) Stop(_ service.Service) error {
-	a.agent.Info("Stopping stanza agent")
+	a.agent.Info("Stopping opsramp agent")
 	if err := a.agent.Stop(); err != nil {
-		a.agent.Errorw("Failed to stop stanza agent gracefully", zap.Any("error", err))
+		a.agent.Errorw("Failed to stop opsramp agent gracefully", zap.Any("error", err))
 		a.cancel()
 		return nil
 	}
 
-	a.agent.Info("Stanza agent stopped")
+	a.agent.Info("Opsramp agent stopped")
 	a.cancel()
 	return nil
 }
@@ -48,8 +48,8 @@ func (a *AgentService) Stop(_ service.Service) error {
 func newAgentService(ctx context.Context, agent *agent.LogAgent, cancel context.CancelFunc) (service.Service, error) {
 	agentService := &AgentService{cancel, agent}
 	config := &service.Config{
-		Name:        "stanza",
-		DisplayName: "Stanza Log Agent",
+		Name:        "opsramp",
+		DisplayName: "OpsRamp Log Agent",
 		Description: "Monitors and processes log entries",
 		Option: service.KeyValue{
 			"RunWait": func() {
