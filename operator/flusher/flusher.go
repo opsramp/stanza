@@ -24,30 +24,6 @@ type Config struct {
 	MaxElapsedTime   time.Duration `json:"max_elapsed_time" yaml:"max_elapsed_time"`
 }
 
-// NewConfig creates a new default flusher config
-func NewConfig() Config {
-	return Config{
-		MaxConcurrent: 16,
-	}
-}
-
-// Build uses a Config to build a new Flusher
-func (c *Config) Build(logger *zap.SugaredLogger) *Flusher {
-	maxConcurrent := c.MaxConcurrent
-	if maxConcurrent == 0 {
-		maxConcurrent = 16
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	return &Flusher{
-		ctx:           ctx,
-		cancel:        cancel,
-		sem:           semaphore.NewWeighted(int64(maxConcurrent)),
-		SugaredLogger: logger,
-	}
-}
-
 // Flusher is used to flush entries from a buffer concurrently. It handles max concurrency,
 // retry behavior, and cancellation.
 type Flusher struct {
@@ -56,7 +32,41 @@ type Flusher struct {
 	cancel         context.CancelFunc
 	sem            *semaphore.Weighted
 	wg             sync.WaitGroup
+	config         Config
 	*zap.SugaredLogger
+}
+
+// NewConfig creates a new default flusher config
+func NewConfig() Config {
+	return Config{
+		MaxConcurrent: 16,
+	}
+}
+
+// Build uses a Config to build a new Flusher
+func (c Config) Build(logger *zap.SugaredLogger) *Flusher {
+	maxConcurrent := c.MaxConcurrent
+	if maxConcurrent == 0 {
+		maxConcurrent = 16
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	if c.MaxRetryInterval == 0 {
+		c.MaxRetryInterval = maxRetryInterval
+	}
+
+	if c.MaxElapsedTime == 0 {
+		c.MaxElapsedTime = maxElapsedTime
+	}
+
+	return &Flusher{
+		ctx:           ctx,
+		cancel:        cancel,
+		sem:           semaphore.NewWeighted(int64(maxConcurrent)),
+		config:        c,
+		SugaredLogger: logger,
+	}
 }
 
 // FlushFunc is any function that flushes
@@ -91,7 +101,7 @@ func (f *Flusher) Stop() {
 // it is safe to mark the entries in the buffer as flushed.
 func (f *Flusher) flushWithRetry(ctx context.Context, flush FlushFunc) {
 	chunkID := f.nextChunkID()
-	b := newExponentialBackoff()
+	b := f.newExponentialBackoff()
 	for {
 		err := flush(ctx)
 		if err == nil {
@@ -126,13 +136,13 @@ func (f *Flusher) nextChunkID() uint64 {
 }
 
 // newExponentialBackoff returns a default ExponentialBackOff
-func newExponentialBackoff() *backoff.ExponentialBackOff {
+func (f *Flusher) newExponentialBackoff() *backoff.ExponentialBackOff {
 	b := &backoff.ExponentialBackOff{
 		InitialInterval:     50 * time.Millisecond,
 		RandomizationFactor: backoff.DefaultRandomizationFactor,
 		Multiplier:          backoff.DefaultMultiplier,
-		MaxInterval:         maxRetryInterval,
-		MaxElapsedTime:      maxElapsedTime,
+		MaxInterval:         f.config.MaxRetryInterval,
+		MaxElapsedTime:      f.config.MaxElapsedTime,
 		Stop:                backoff.Stop,
 		Clock:               backoff.SystemClock,
 	}

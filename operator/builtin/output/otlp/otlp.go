@@ -62,8 +62,7 @@ func (o *OtlpOutput) Start() error {
 	}
 	o.logsClient = otlpgrpc.NewLogsClient(o.clientConn)
 
-	o.wg.Add(1)
-	o.flush(ctx)
+	o.flush()
 	return nil
 }
 
@@ -80,7 +79,7 @@ func (o *OtlpOutput) Stop() error {
 	return o.clientConn.Close()
 }
 
-func (o *OtlpOutput) flush(ctx context.Context) {
+func (o *OtlpOutput) flush() {
 	o.wg.Add(1)
 	go func() {
 		defer o.wg.Done()
@@ -93,7 +92,7 @@ func (o *OtlpOutput) flush(ctx context.Context) {
 			default:
 			}
 
-			err := o.flushChunk(ctx)
+			err := o.flushChunk()
 			if err != nil {
 				o.Errorw("failed to flush from buffer", zap.Error(err))
 			}
@@ -101,8 +100,8 @@ func (o *OtlpOutput) flush(ctx context.Context) {
 	}()
 }
 
-func (o *OtlpOutput) flushChunk(ctx context.Context) error {
-	entries, clearer, err := o.buffer.ReadChunk(ctx)
+func (o *OtlpOutput) flushChunk() error {
+	entries, clearer, err := o.buffer.ReadChunk(o.ctx)
 	if err != nil {
 		return fmt.Errorf("failed to read entries from buffer: %w", err)
 	}
@@ -112,7 +111,6 @@ func (o *OtlpOutput) flushChunk(ctx context.Context) error {
 	o.Debugw("Read entries from buffer, ", "entries: ", entriesLen, ", chunk_id: ", chunkID)
 	logRequest := buildProtoRequest(entries)
 	o.Debugw("Created export requests ", "with ", entriesLen, " entries, chunk_id: ", chunkID)
-
 	flushFunc := func(ctx context.Context) error {
 		md := metadata.New(map[string]string{authorization: o.config.Authorization})
 		ctx = metadata.NewOutgoingContext(ctx, md)
