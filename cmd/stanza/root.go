@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	"os/signal"
+	"syscall"
+
 	"github.com/kardianos/service"
 	"github.com/observiq/stanza/errors"
 	"gopkg.in/fsnotify.v1"
-	"log"
-	"net/http"
 
 	// This package registers its HTTP endpoints for profiling using an init hook
 	_ "net/http/pprof" // #nosec
@@ -127,17 +130,20 @@ func runRoot(command *cobra.Command, _ []string, flags *RootFlags) {
 		os.Exit(1)
 	}
 
+	profilingWg := startProfiling(ctx, flags, logger)
+
+	var sigChan = make(chan os.Signal, 3)
+	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
+
 	go func() {
 		for {
 			select {
-			/*case <-ctx.Done():
-			serviceWG.Done()
-			return*/
+			case <-sigChan:
+				serviceWG.Done()
+				return
 			case event, _ := <-watcher.Events:
 				if event.Op == fsnotify.Write {
-					err := service.Stop()
-					fmt.Println(err)
-					/*logger.Debug("New configuration detected, reload pipeline...")
+					logger.Debug("New configuration detected, reload pipeline...")
 					cancel()
 					ctx, cancel := context.WithCancel(command.Context())
 					service, err := buildService(ctx, cancel, logger, flags)
@@ -150,7 +156,7 @@ func runRoot(command *cobra.Command, _ []string, flags *RootFlags) {
 						if err != nil {
 							logger.Errorw("Failed to run agent service", zap.Any("error", err))
 						}
-					}()*/
+					}()
 				}
 			}
 		}
@@ -163,8 +169,7 @@ func runRoot(command *cobra.Command, _ []string, flags *RootFlags) {
 	}
 
 	serviceWG.Wait()
-	//profilingWg := startProfiling(ctx, flags, logger)
-	//profilingWg.Wait()
+	profilingWg.Wait()
 }
 
 func buildService(ctx context.Context, cancel context.CancelFunc, logger *zap.SugaredLogger, flags *RootFlags) (service.Service, error) {
