@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
 
 	"github.com/stretchr/testify/require"
 )
@@ -71,4 +74,33 @@ pipeline:
 	require.NoError(t, err)
 
 	require.Regexp(t, expectedPattern, string(actual))
+}
+
+func TestFileWatcher(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+
+	testFile := filepath.Join(tempDir, "test.txt")
+
+	input := []byte("Test\n")
+	err = ioutil.WriteFile(testFile, input, 0666)
+	require.NoError(t, err)
+
+	watcher, err := fsnotify.NewWatcher()
+	require.NoError(t, err)
+	defer watcher.Close()
+
+	err = watcher.Add(testFile)
+	require.NoError(t, err)
+
+	err = ioutil.WriteFile(testFile, input, 0666)
+	event, _ := <-watcher.Events
+	require.Equal(t, event.Op, fsnotify.Chmod)
+
+	event, _ = <-watcher.Events
+	require.Equal(t, event.Op, fsnotify.Write)
+
+	err = os.Remove(testFile)
+	require.NoError(t, err)
+
 }
