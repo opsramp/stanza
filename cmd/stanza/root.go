@@ -5,6 +5,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os/signal"
+	"syscall"
+
+	"github.com/kardianos/service"
+	"github.com/observiq/stanza/errors"
+	"gopkg.in/fsnotify.v1"
 
 	// This package registers its HTTP endpoints for profiling using an init hook
 	_ "net/http/pprof" // #nosec
@@ -106,25 +112,31 @@ func runRoot(command *cobra.Command, _ []string, flags *RootFlags) {
 	defer func() {
 		_ = logger.Sync()
 	}()
+	ctx, cancel := context.WithCancel(command.Context())
 
-	agent, err := agent.NewBuilder(logger).
-		WithConfigFiles(flags.ConfigFiles).
-		WithPluginDir(flags.PluginDir).
-		WithDatabaseFile(flags.DatabaseFile).
-		Build()
+	service, err := buildService(ctx, cancel, logger, flags)
 	if err != nil {
 		logger.Errorw("Failed to build agent", zap.Any("error", err))
 		os.Exit(1)
 	}
 
-	ctx, cancel := context.WithCancel(command.Context())
-	service, err := newAgentService(ctx, agent, cancel)
+	watcher, err := fsnotify.NewWatcher()
+	watcher.Add(flags.ConfigFiles[0])
+	serviceWG := &sync.WaitGroup{}
+	serviceWG.Add(1)
+
 	if err != nil {
-		logger.Errorf("Failed to create agent service", zap.Any("error", err))
+		logger.Errorw("Failed to run file watcher", zap.Any("error", err))
 		os.Exit(1)
 	}
 
 	profilingWg := startProfiling(ctx, flags, logger)
+
+	var sigChan = make(chan os.Signal, 3)
+	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
+
+	// Run file watcher to track changes in config
+	go runWatcher(serviceWG, flags, logger, command, cancel)
 
 	err = service.Run()
 	if err != nil {
@@ -132,7 +144,66 @@ func runRoot(command *cobra.Command, _ []string, flags *RootFlags) {
 		os.Exit(1)
 	}
 
+	serviceWG.Wait()
 	profilingWg.Wait()
+}
+
+func runWatcher(serviceWG *sync.WaitGroup, flags *RootFlags, logger *zap.SugaredLogger, command *cobra.Command, cancel context.CancelFunc) {
+	var sigChan = make(chan os.Signal, 3)
+	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		logger.Errorw("Failed to run watcher", zap.Any("error", err))
+		os.Exit(1)
+	}
+	watcher.Add(flags.ConfigFiles[0])
+
+	for {
+		select {
+		case <-sigChan:
+			serviceWG.Done()
+			return
+		case event, _ := <-watcher.Events:
+			if event.Op == fsnotify.Write {
+				logger.Debug("New configuration detected, reload pipeline...")
+				cancel()
+				ctx, cancel := context.WithCancel(command.Context())
+				service, err := buildService(ctx, cancel, logger, flags)
+				if err != nil {
+					logger.Errorw("Failed to run new config", zap.Any("error", err))
+					continue
+				}
+				go func() {
+					err = service.Run()
+					if err != nil {
+						logger.Errorw("Failed to run agent service", zap.Any("error", err))
+					}
+				}()
+			}
+		}
+	}
+
+}
+
+func buildService(ctx context.Context, cancel context.CancelFunc, logger *zap.SugaredLogger, flags *RootFlags) (service.Service, error) {
+
+	agent, err := agent.NewBuilder(logger).
+		WithConfigFiles(flags.ConfigFiles).
+		WithPluginDir(flags.PluginDir).
+		WithDatabaseFile(flags.DatabaseFile).
+		Build()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to build agent")
+
+	}
+	service, err := newAgentService(ctx, agent, cancel)
+	if err != nil {
+		return nil, err
+	}
+
+	return service, nil
+
 }
 
 func startProfiling(ctx context.Context, flags *RootFlags, logger *zap.SugaredLogger) *sync.WaitGroup {
