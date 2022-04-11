@@ -24,8 +24,6 @@ type Config struct {
 	MaxElapsedTime   time.Duration `json:"max_elapsed_time" yaml:"max_elapsed_time"`
 }
 
-// Flusher is used to flush entries from a buffer concurrently. It handles max concurrency,
-// retry behavior, and cancellation.
 type Flusher struct {
 	chunkIDCounter uint64
 	ctx            context.Context
@@ -95,10 +93,6 @@ func (f *Flusher) Stop() {
 	f.wg.Wait()
 }
 
-// flushWithRetry will continue trying to call flushFunc with the entries passed
-// in until either flushFunc returns no error or the context is cancelled. It will only
-// return an error in the case that the context was cancelled. If no error was returned,
-// it is safe to mark the entries in the buffer as flushed.
 func (f *Flusher) flushWithRetry(ctx context.Context, flush FlushFunc) {
 	chunkID := f.nextChunkID()
 	b := f.newExponentialBackoff()
