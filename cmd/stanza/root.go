@@ -135,32 +135,8 @@ func runRoot(command *cobra.Command, _ []string, flags *RootFlags) {
 	var sigChan = make(chan os.Signal, 3)
 	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
 
-	go func() {
-		for {
-			select {
-			case <-sigChan:
-				serviceWG.Done()
-				return
-			case event, _ := <-watcher.Events:
-				if event.Op == fsnotify.Write {
-					logger.Debug("New configuration detected, reload pipeline...")
-					cancel()
-					ctx, cancel := context.WithCancel(command.Context())
-					service, err := buildService(ctx, cancel, logger, flags)
-					if err != nil {
-						logger.Errorw("Failed to run new config", zap.Any("error", err))
-						continue
-					}
-					go func() {
-						err = service.Run()
-						if err != nil {
-							logger.Errorw("Failed to run agent service", zap.Any("error", err))
-						}
-					}()
-				}
-			}
-		}
-	}()
+	// Run file watcher to track changes in config
+	go runWatcher(serviceWG, flags, logger, command, cancel)
 
 	err = service.Run()
 	if err != nil {
@@ -170,6 +146,44 @@ func runRoot(command *cobra.Command, _ []string, flags *RootFlags) {
 
 	serviceWG.Wait()
 	profilingWg.Wait()
+}
+
+func runWatcher(serviceWG *sync.WaitGroup, flags *RootFlags, logger *zap.SugaredLogger, command *cobra.Command, cancel context.CancelFunc) {
+	var sigChan = make(chan os.Signal, 3)
+	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		logger.Errorw("Failed to run watcher", zap.Any("error", err))
+		os.Exit(1)
+	}
+	watcher.Add(flags.ConfigFiles[0])
+
+	for {
+		select {
+		case <-sigChan:
+			serviceWG.Done()
+			return
+		case event, _ := <-watcher.Events:
+			if event.Op == fsnotify.Write {
+				logger.Debug("New configuration detected, reload pipeline...")
+				cancel()
+				ctx, cancel := context.WithCancel(command.Context())
+				service, err := buildService(ctx, cancel, logger, flags)
+				if err != nil {
+					logger.Errorw("Failed to run new config", zap.Any("error", err))
+					continue
+				}
+				go func() {
+					err = service.Run()
+					if err != nil {
+						logger.Errorw("Failed to run agent service", zap.Any("error", err))
+					}
+				}()
+			}
+		}
+	}
+
 }
 
 func buildService(ctx context.Context, cancel context.CancelFunc, logger *zap.SugaredLogger, flags *RootFlags) (service.Service, error) {
