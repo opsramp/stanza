@@ -63,9 +63,6 @@ func (bc *Config) unmarshal(unmarshal func(interface{}) error) error {
 	case "memory":
 		bc.Builder = NewMemoryBufferConfig()
 		return unmarshal(bc.Builder)
-	case "disk":
-		bc.Builder = NewDiskBufferConfig()
-		return unmarshal(bc.Builder)
 	default:
 		return fmt.Errorf("unknown buffer type '%s'", m["type"])
 	}
