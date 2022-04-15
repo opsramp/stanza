@@ -21,7 +21,7 @@ import (
 )
 
 func init() {
-	operator.Register("otlp", func() operator.Builder { return NewOTLPConfig("") })
+	operator.Register("otlp_output", func() operator.Builder { return NewOTLPConfig("") })
 }
 
 const authorization = "authorization"
@@ -46,7 +46,7 @@ func (o *OtlpOutput) Start() error {
 	var err error
 	ctx := context.Background()
 
-	if !o.config.RetrySettings.Enabled {
+	if !o.config.RetryDisabled {
 		opts = append(opts, grpc.WithDisableRetry())
 	}
 
