@@ -1,43 +1,115 @@
 package filecheck
 
 import (
-	"github.com/stretchr/testify/suite"
-	"go.etcd.io/bbolt"
+	"bytes"
+	"context"
+	"encoding/json"
 	"io/ioutil"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/suite"
+	"go.etcd.io/bbolt"
 )
 
 const test_scope = "test_scope"
 
 type PersisterTestSuite struct {
 	suite.Suite
-	p Persister
+	persister Persister
+	cancel    context.CancelFunc
 }
 
 func (p *PersisterTestSuite) SetupSuite() {
 	dbFile, err := ioutil.TempFile("", "")
 	p.Nil(err)
+	ctx, cancel := context.WithCancel(context.Background())
+	p.cancel = cancel
 
 	options := &bbolt.Options{Timeout: 1 * time.Second}
 	db, err := bbolt.Open(dbFile.Name(), 0600, options)
 	p.Nil(err)
-	p.p = NewPersister(db, test_scope)
+	p.persister = NewPersister(ctx, db, "test", 1*time.Second)
+
+}
+
+func (p *PersisterTestSuite) TearDownSuite() {
+	p.cancel()
 }
 
 func TestPersisterSuite(t *testing.T) {
 	suite.Run(t, new(PersisterTestSuite))
 }
 
-func (p *PersisterTestSuite) TestBoltPersisterBucket() {
-	err := p.p.Put("test", []byte("value"))
+func (p *PersisterTestSuite) TestBoltPersisterGet() {
+	value, ok := p.persister.Get("key1")
+	p.False(ok)
+	p.fillTestValues()
+	p.persister.Flush()
+	p.persister.ClearCache()
+
+	value, ok = p.persister.Get("key1")
+	p.False(ok)
+
+	err := p.persister.LoadAll()
 	p.Nil(err)
-	value, err := p.p.Get("test")
-	p.Equal(value, []byte("value"))
-	err = p.p.Put("test1", []byte("value1"))
+
+	value, ok = p.persister.Get("key1")
+	p.True(ok)
+
+	id := new(FileIdentifier)
+	dec := json.NewDecoder(bytes.NewReader(value))
+	dec.Decode(&id)
+	p.Equal(id.FingerPrint.FirstBytes, []byte("test99"))
+	p.Equal(id.Offset, int64(99))
+
+	value, ok = p.persister.Get("key2")
+	p.True(ok)
+
+	dec = json.NewDecoder(bytes.NewReader(value))
+	dec.Decode(&id)
+	p.Equal(id.FingerPrint.FirstBytes, []byte("test333"))
+	p.Equal(id.Offset, int64(380))
+
+}
+
+func (p *PersisterTestSuite) TestTicker() {
+
+	p.SetupSuite()
+	p.fillTestValues()
+	//wait for flushing
+	<-time.After(2 * time.Second)
+	p.persister.ClearCache()
+	p.persister.LoadAll()
+	_, ok := p.persister.Get("key1")
+	p.True(ok)
+
+}
+
+func (p *PersisterTestSuite) fillTestValues() {
+	//putting test values
+	buf := new(bytes.Buffer)
+	enc := json.NewEncoder(buf)
+
+	key1 := FileIdentifier{
+		FingerPrint: &Fingerprint{FirstBytes: []byte("test99")},
+		Offset:      99,
+	}
+
+	err := enc.Encode(key1)
 	p.Nil(err)
-	values := p.p.GetAll()
-	p.Len(values, 2)
-	p.NotNil(values["test"])
-	p.NotNil(values["test1"])
+	p.persister.Put("key1", buf.Bytes())
+
+	key2 := FileIdentifier{
+		FingerPrint: &Fingerprint{FirstBytes: []byte("test333")},
+		Offset:      380,
+	}
+
+	buf = new(bytes.Buffer)
+	enc = json.NewEncoder(buf)
+	err = enc.Encode(key2)
+	p.Nil(err)
+	p.persister.Put("key2", buf.Bytes())
+
+	p.Nil(err)
 }

@@ -42,6 +42,11 @@ func (f *InputOperator) resolveFileLabels(path string) *fileLabels {
 	}
 }
 
+type FileIdentifier struct {
+	FingerPrint *Fingerprint
+	Offset      int64
+}
+
 // Reader manages a single file
 type Reader struct {
 	Fingerprint *Fingerprint
