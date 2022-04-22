@@ -2,15 +2,18 @@ package filecheck
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/observiq/stanza/entry"
 	"github.com/observiq/stanza/errors"
 	"go.uber.org/zap"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/transform"
-	"os"
-	"path/filepath"
 )
 
 // File labels contains information about file paths
@@ -50,6 +53,7 @@ type FileIdentifier struct {
 // Reader manages a single file
 type Reader struct {
 	Fingerprint *Fingerprint
+	persister   Persister
 	Offset      int64
 	eof         bool
 
@@ -69,9 +73,10 @@ type Reader struct {
 }
 
 // NewReader creates a new file reader
-func (f *InputOperator) NewReader(path string, file *os.File, fp *Fingerprint) (*Reader, error) {
+func (f *InputOperator) NewReader(path string, file *os.File, fp *Fingerprint, persister Persister, startAtBeginning bool) (*Reader, error) {
 	r := &Reader{
 		Fingerprint:   fp,
+		persister:     persister,
 		HeaderLabels:  make(map[string]string),
 		file:          file,
 		fileInput:     f,
@@ -80,12 +85,32 @@ func (f *InputOperator) NewReader(path string, file *os.File, fp *Fingerprint) (
 		decodeBuffer:  make([]byte, 1<<12),
 		fileLabels:    f.resolveFileLabels(path),
 	}
+
+	//this is new Reader, so we have to check if it has checkpoint
+	if !f.checkCheckpoint(path, r) {
+		r.initializeOffset(startAtBeginning)
+	}
 	return r, nil
+}
+
+func (f *InputOperator) checkCheckpoint(path string, reader *Reader) bool {
+	checkpoint, ok := f.persister.Get(path)
+	if !ok {
+		return false
+	}
+	id := new(FileIdentifier)
+	dec := json.NewDecoder(bytes.NewReader(checkpoint))
+	if err := dec.Decode(&id); err != nil {
+		f.Logger().Errorf("checkpont decoding failed, %s", err)
+		return false
+	}
+	reader.Offset = id.Offset
+	return true
 }
 
 // Copy creates a deep copy of a Reader
 func (f *Reader) Copy(file *os.File) (*Reader, error) {
-	reader, err := f.fileInput.NewReader(f.fileLabels.Path, file, f.Fingerprint.Copy())
+	reader, err := f.fileInput.NewReader(f.fileLabels.Path, file, f.Fingerprint.Copy(), f.persister, false)
 	if err != nil {
 		return nil, err
 	}
@@ -96,8 +121,8 @@ func (f *Reader) Copy(file *os.File) (*Reader, error) {
 	return reader, nil
 }
 
-// InitializeOffset sets the starting offset
-func (f *Reader) InitializeOffset(startAtBeginning bool) error {
+// initializeOffset sets the starting offset
+func (f *Reader) initializeOffset(startAtBeginning bool) error {
 	if !startAtBeginning {
 		info, err := f.file.Stat()
 		if err != nil {

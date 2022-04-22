@@ -3,7 +3,6 @@ package filecheck
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"os"
 	"regexp"
 	"sync"
@@ -30,7 +29,7 @@ type InputOperator struct {
 	SeenPaths             map[string]time.Time
 	filenameRecallPeriod  time.Duration
 
-	persist Persister
+	persister Persister
 
 	knownFiles      []*Reader
 	queuedMatches   []string
@@ -80,6 +79,10 @@ func (f *InputOperator) Stop() error {
 // startPoller kicks off a goroutine that will poll the filesystem periodically,
 // checking if there are new files or new logs in the watched files
 func (f *InputOperator) startPoller(ctx context.Context) {
+
+	f.persister.LoadAll()
+	f.persister.StartFlusher(ctx)
+
 	f.wg.Add(1)
 	go func() {
 		defer f.wg.Done()
@@ -180,6 +183,7 @@ func (f *InputOperator) poll(ctx context.Context) {
 // been read this polling interval
 func (f *InputOperator) makeReaders(ctx context.Context, filePaths []string) []*Reader {
 	// Open the files first to minimize the time between listing and opening
+	//TODO suppose we don't need it
 	now := time.Now()
 	cutoff := now.Add(f.filenameRecallPeriod * -1)
 	for filename, lastSeenTime := range f.SeenPaths {
@@ -225,7 +229,7 @@ OUTER:
 			if err := files[i].Close(); err != nil {
 				f.Errorf("problem closing file", "file", files[i].Name())
 			}
-			// Empty file, don't read it until we can compare its fingerprint
+			// Empty file, don't read it until we can compare its fingerprint, so just exclude
 			fps = append(fps[:i], fps[i+1:]...)
 			files = append(files[:i], files[i+1:]...)
 			i--
@@ -244,6 +248,7 @@ OUTER:
 		}
 	}
 
+	// here we got all eligible files to process, and need to compare of what we had in previous poll
 	readers := make([]*Reader, 0, len(fps))
 	for i := 0; i < len(fps); i++ {
 		reader, err := f.newReader(ctx, files[i], fps[i], f.firstCheck)
@@ -290,7 +295,8 @@ func (f *InputOperator) newReader(ctx context.Context, file *os.File, fp *Finger
 	}
 
 	// If we don't match any previously known files, create a new reader from scratch
-	newReader, err := f.NewReader(file.Name(), file, fp)
+	startAtBeginning := !firstCheck || f.startAtBeginning
+	newReader, err := f.NewReader(file.Name(), file, fp, f.persister, startAtBeginning)
 	if err != nil {
 		return nil, err
 	}
@@ -300,10 +306,10 @@ func (f *InputOperator) newReader(ctx context.Context, file *os.File, fp *Finger
 		}*/
 		newReader.ReadHeaders(ctx)
 	}
-	startAtBeginning := !firstCheck || f.startAtBeginning
-	if err := newReader.InitializeOffset(startAtBeginning); err != nil {
+	/*startAtBeginning := !firstCheck || f.startAtBeginning
+	if err := newReader.initializeOffset(startAtBeginning); err != nil {
 		return nil, fmt.Errorf("initialize offset: %s", err)
-	}
+	}*/
 	return newReader, nil
 }
 
