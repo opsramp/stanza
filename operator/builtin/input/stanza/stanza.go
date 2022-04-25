@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/observiq/stanza/logger"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/logger"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/helper"
 )
 
 func init() {

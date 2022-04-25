@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/observiq/stanza/operator"
+	"github.com/opsramp/stanza/operator"
 
 	"golang.org/x/text/encoding"
 )

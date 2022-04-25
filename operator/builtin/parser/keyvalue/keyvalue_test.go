@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/helper"
-	"github.com/observiq/stanza/testutil"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/helper"
+	"github.com/opsramp/stanza/testutil"
 	"go.uber.org/zap"
 
 	"github.com/stretchr/testify/mock"

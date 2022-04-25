@@ -1,8 +1,8 @@
 package helper
 
 import (
-	"github.com/observiq/stanza/errors"
-	"github.com/observiq/stanza/operator"
+	"github.com/opsramp/stanza/errors"
+	"github.com/opsramp/stanza/operator"
 	"go.uber.org/zap"
 )
 

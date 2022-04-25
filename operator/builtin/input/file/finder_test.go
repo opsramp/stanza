@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/observiq/stanza/testutil"
+	"github.com/opsramp/stanza/testutil"
 )
 
 func TestFinder(t *testing.T) {

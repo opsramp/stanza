@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/observiq/stanza/entry"
+	"github.com/opsramp/stanza/entry"
 
 	pstruct "github.com/golang/protobuf/ptypes/struct"
 	"google.golang.org/genproto/googleapis/logging/v2"

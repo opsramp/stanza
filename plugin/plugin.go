@@ -9,8 +9,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/observiq/stanza/errors"
-	"github.com/observiq/stanza/operator"
+	"github.com/opsramp/stanza/errors"
+	"github.com/opsramp/stanza/operator"
 	yaml "gopkg.in/yaml.v2"
 )
 

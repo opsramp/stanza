@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/errors"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/errors"
 	"go.uber.org/zap"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/transform"

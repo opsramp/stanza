@@ -4,7 +4,7 @@ import (
 	"context"
 
 	azhub "github.com/Azure/azure-event-hubs-go/v3"
-	"github.com/observiq/stanza/operator/builtin/input/azure"
+	"github.com/opsramp/stanza/operator/builtin/input/azure"
 	"go.uber.org/zap"
 )
 

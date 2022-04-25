@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/errors"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/errors"
 )
 
 // NewHostIdentifierConfig returns a HostIdentifierConfig with default values

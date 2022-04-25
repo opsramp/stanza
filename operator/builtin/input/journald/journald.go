@@ -16,9 +16,9 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/helper"
 	"go.uber.org/zap"
 )
 

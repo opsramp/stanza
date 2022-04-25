@@ -6,11 +6,11 @@ import (
 	"path"
 	"testing"
 
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/buffer"
-	"github.com/observiq/stanza/operator/helper"
-	"github.com/observiq/stanza/testutil"
-	"github.com/observiq/stanza/version"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/buffer"
+	"github.com/opsramp/stanza/operator/helper"
+	"github.com/opsramp/stanza/testutil"
+	"github.com/opsramp/stanza/version"
 	"github.com/stretchr/testify/require"
 )
 

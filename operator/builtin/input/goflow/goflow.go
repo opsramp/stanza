@@ -10,8 +10,8 @@ import (
 	"github.com/jpillora/backoff"
 	flowmessage "github.com/observiq/goflow/v3/pb"
 	"github.com/observiq/goflow/v3/utils"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/helper"
 	"go.uber.org/zap"
 )
 

@@ -7,9 +7,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/testutil"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/testutil"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )

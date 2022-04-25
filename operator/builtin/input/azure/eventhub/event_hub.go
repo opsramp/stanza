@@ -3,9 +3,9 @@ package eventhub
 import (
 	"context"
 
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/builtin/input/azure"
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/builtin/input/azure"
+	"github.com/opsramp/stanza/operator/helper"
 )
 
 const operatorName = "azure_event_hub_input"

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/helper"
 	"go.uber.org/zap"
 )
 

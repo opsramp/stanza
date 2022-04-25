@@ -3,7 +3,7 @@ package otlp
 import (
 	"fmt"
 
-	"github.com/observiq/stanza/entry"
+	"github.com/opsramp/stanza/entry"
 	"go.opentelemetry.io/collector/model/otlpgrpc"
 	"go.opentelemetry.io/collector/model/pdata"
 )

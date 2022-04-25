@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/observiq/stanza/database"
-	"github.com/observiq/stanza/testutil"
+	"github.com/opsramp/stanza/database"
+	"github.com/opsramp/stanza/testutil"
 	"github.com/stretchr/testify/require"
 )
 

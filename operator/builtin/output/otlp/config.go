@@ -3,13 +3,13 @@ package otlp
 import (
 	"context"
 	"fmt"
-	"github.com/observiq/stanza/operator"
+	"github.com/opsramp/stanza/operator"
 	"time"
 
-	"github.com/observiq/stanza/operator/buffer"
-	"github.com/observiq/stanza/operator/flusher"
+	"github.com/opsramp/stanza/operator/buffer"
+	"github.com/opsramp/stanza/operator/flusher"
 
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/operator/helper"
 )
 
 // GRPCClientSettings defines common settings for a gRPC client configuration.

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/observiq/stanza/entry"
+	"github.com/opsramp/stanza/entry"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/genproto/googleapis/api/monitoredres"
 	"google.golang.org/genproto/googleapis/logging/v2"

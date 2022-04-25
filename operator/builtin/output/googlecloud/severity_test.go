@@ -3,7 +3,7 @@ package googlecloud
 import (
 	"testing"
 
-	"github.com/observiq/stanza/entry"
+	"github.com/opsramp/stanza/entry"
 	"github.com/stretchr/testify/require"
 	sev "google.golang.org/genproto/googleapis/logging/type"
 )

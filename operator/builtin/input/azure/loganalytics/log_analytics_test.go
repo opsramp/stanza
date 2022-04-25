@@ -3,8 +3,8 @@ package loganalytics
 import (
 	"testing"
 
-	"github.com/observiq/stanza/operator/builtin/input/azure"
-	"github.com/observiq/stanza/testutil"
+	"github.com/opsramp/stanza/operator/builtin/input/azure"
+	"github.com/opsramp/stanza/testutil"
 	"github.com/stretchr/testify/require"
 )
 

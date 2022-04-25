@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/observiq/stanza/entry"
+	"github.com/opsramp/stanza/entry"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"

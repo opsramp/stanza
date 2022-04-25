@@ -3,10 +3,10 @@ package main
 import (
 	"os"
 
-	"github.com/observiq/stanza/agent"
-	"github.com/observiq/stanza/database"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/plugin"
+	"github.com/opsramp/stanza/agent"
+	"github.com/opsramp/stanza/database"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/plugin"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )

@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/operator"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/operator"
 )
 
 const minSeverity = 0

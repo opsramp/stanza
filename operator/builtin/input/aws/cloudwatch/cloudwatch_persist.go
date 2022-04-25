@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/operator/helper"
 )
 
 // Persister ensures data is persisted across shutdowns

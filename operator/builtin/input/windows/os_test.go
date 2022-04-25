@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package windows
@@ -7,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/observiq/stanza/operator"
+	"github.com/opsramp/stanza/operator"
 )
 
 func TestWindowsOnly(t *testing.T) {

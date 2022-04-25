@@ -5,7 +5,7 @@ import (
 	"time"
 
 	azhub "github.com/Azure/azure-event-hubs-go/v3"
-	"github.com/observiq/stanza/entry"
+	"github.com/opsramp/stanza/entry"
 	"github.com/stretchr/testify/require"
 )
 

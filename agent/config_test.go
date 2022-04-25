@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/observiq/stanza/operator"
-	_ "github.com/observiq/stanza/operator/builtin/transformer/noop"
-	"github.com/observiq/stanza/pipeline"
-	"github.com/observiq/stanza/testutil"
+	"github.com/opsramp/stanza/operator"
+	_ "github.com/opsramp/stanza/operator/builtin/transformer/noop"
+	"github.com/opsramp/stanza/pipeline"
+	"github.com/opsramp/stanza/testutil"
 	"github.com/stretchr/testify/require"
 )
 

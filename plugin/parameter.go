@@ -3,7 +3,7 @@ package plugin
 import (
 	"fmt"
 
-	"github.com/observiq/stanza/errors"
+	"github.com/opsramp/stanza/errors"
 )
 
 const (

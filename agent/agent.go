@@ -3,8 +3,8 @@ package agent
 import (
 	"sync"
 
-	"github.com/observiq/stanza/database"
-	"github.com/observiq/stanza/pipeline"
+	"github.com/opsramp/stanza/database"
+	"github.com/opsramp/stanza/pipeline"
 	"go.uber.org/zap"
 )
 

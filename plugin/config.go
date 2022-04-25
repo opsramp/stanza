@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/observiq/stanza/errors"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/helper"
-	"github.com/observiq/stanza/pipeline"
+	"github.com/opsramp/stanza/errors"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/helper"
+	"github.com/opsramp/stanza/pipeline"
 	yaml "gopkg.in/yaml.v2"
 )
 

@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/testutil"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/testutil"
 )
 
 type fileInputBenchmark struct {

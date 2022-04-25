@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/observiq/stanza/database"
-	"github.com/observiq/stanza/logger"
+	"github.com/opsramp/stanza/database"
+	"github.com/opsramp/stanza/logger"
 	"go.uber.org/zap"
 )
 

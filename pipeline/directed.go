@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/observiq/stanza/errors"
-	"github.com/observiq/stanza/operator"
+	"github.com/opsramp/stanza/errors"
+	"github.com/opsramp/stanza/operator"
 	"gonum.org/v1/gonum/graph/encoding/dot"
 	"gonum.org/v1/gonum/graph/simple"
 	"gonum.org/v1/gonum/graph/topo"

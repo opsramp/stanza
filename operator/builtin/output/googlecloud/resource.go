@@ -1,7 +1,7 @@
 package googlecloud
 
 import (
-	"github.com/observiq/stanza/entry"
+	"github.com/opsramp/stanza/entry"
 	"google.golang.org/genproto/googleapis/api/monitoredres"
 )
 

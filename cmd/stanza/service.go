@@ -7,7 +7,7 @@ import (
 	"syscall"
 
 	"github.com/kardianos/service"
-	"github.com/observiq/stanza/agent"
+	"github.com/opsramp/stanza/agent"
 	"go.uber.org/zap"
 )
 

@@ -9,9 +9,9 @@ import (
 	"time"
 
 	azhub "github.com/Azure/azure-event-hubs-go/v3"
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/errors"
-	"github.com/observiq/stanza/operator/builtin/input/azure"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/errors"
+	"github.com/opsramp/stanza/operator/builtin/input/azure"
 	"go.uber.org/zap"
 )
 

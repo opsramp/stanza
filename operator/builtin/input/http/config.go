@@ -8,9 +8,9 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/builtin/input/tcp"
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/builtin/input/tcp"
+	"github.com/opsramp/stanza/operator/helper"
 )
 
 const (

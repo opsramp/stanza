@@ -3,14 +3,14 @@ package filecheck
 import (
 	"context"
 	"fmt"
-	"github.com/observiq/stanza/operator/builtin/cachedpersister"
+	"github.com/opsramp/stanza/operator/builtin/cachedpersister"
 	"regexp"
 	"time"
 
 	"github.com/bmatcuk/doublestar/v2"
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/helper"
 )
 
 func init() {

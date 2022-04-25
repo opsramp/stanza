@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	entry "github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/operator"
+	entry "github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/operator"
 	"github.com/stretchr/testify/require"
 	zap "go.uber.org/zap"
 	"go.uber.org/zap/zaptest"

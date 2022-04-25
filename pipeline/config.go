@@ -1,7 +1,7 @@
 package pipeline
 
 import (
-	"github.com/observiq/stanza/operator"
+	"github.com/opsramp/stanza/operator"
 )
 
 // Config is the configuration of a pipeline.

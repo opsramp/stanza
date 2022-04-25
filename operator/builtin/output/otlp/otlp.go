@@ -9,12 +9,12 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/observiq/stanza/operator/flusher"
+	"github.com/opsramp/stanza/operator/flusher"
 
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/buffer"
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/buffer"
+	"github.com/opsramp/stanza/operator/helper"
 	"go.opentelemetry.io/collector/model/otlpgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

@@ -1,8 +1,8 @@
 package newrelic
 
 import (
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/version"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/version"
 )
 
 // LogPayloadFromEntries creates a new []*LogPayload from an array of entries

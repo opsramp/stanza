@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/operator/helper"
 	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v2"
 )

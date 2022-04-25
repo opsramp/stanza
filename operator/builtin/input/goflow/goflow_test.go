@@ -3,7 +3,7 @@ package goflow
 import (
 	"testing"
 
-	"github.com/observiq/stanza/testutil"
+	"github.com/opsramp/stanza/testutil"
 	"github.com/stretchr/testify/require"
 )
 

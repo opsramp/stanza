@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/observiq/stanza/database"
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/database"
+	"github.com/opsramp/stanza/operator/helper"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
 )

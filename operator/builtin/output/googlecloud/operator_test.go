@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/googleapis/gax-go/v2"
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/operator/buffer"
-	"github.com/observiq/stanza/testutil"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/operator/buffer"
+	"github.com/opsramp/stanza/testutil"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/option"

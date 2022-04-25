@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/testutil"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/testutil"
 	"github.com/stretchr/testify/require"
 )
 

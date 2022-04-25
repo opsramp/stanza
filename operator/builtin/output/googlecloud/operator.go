@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/operator/buffer"
-	"github.com/observiq/stanza/operator/flusher"
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/operator/buffer"
+	"github.com/opsramp/stanza/operator/flusher"
+	"github.com/opsramp/stanza/operator/helper"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"

@@ -3,11 +3,11 @@ package cachedpersister
 import (
 	"context"
 	"fmt"
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/operator/helper"
 	"sync"
 	"time"
 
-	"github.com/observiq/stanza/database"
+	"github.com/opsramp/stanza/database"
 	"go.etcd.io/bbolt"
 )
 

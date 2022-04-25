@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/observiq/stanza/database"
-	"github.com/observiq/stanza/entry"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/buffer"
-	"github.com/observiq/stanza/operator/flusher"
-	"github.com/observiq/stanza/operator/helper"
-	"github.com/observiq/stanza/testutil"
+	"github.com/opsramp/stanza/database"
+	"github.com/opsramp/stanza/entry"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/buffer"
+	"github.com/opsramp/stanza/operator/flusher"
+	"github.com/opsramp/stanza/operator/helper"
+	"github.com/opsramp/stanza/testutil"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
@@ -23,11 +23,10 @@ func TestOtlpOperator(t *testing.T) {
 				OperatorID:   "test_operator_id",
 				OperatorType: "otlp",
 			}},
-		Endpoint:      "test:80",
-		Insecure:      "",
-		Headers:       Headers{Authorization: "test"},
-		RetrySettings: RetrySettings{Enabled: true},
-		Timeout:       5,
+		Endpoint: "test:80",
+		Insecure: "",
+		Headers:  Headers{Authorization: "test"},
+		Timeout:  5,
 	}
 
 	ops, err := cfg.Build(testutil.NewBuildContext(t))
@@ -54,7 +53,6 @@ func TestOtlpConfig_Build(t *testing.T) {
 		Endpoint      string
 		Insecure      string
 		Headers       Headers
-		RetrySettings RetrySettings
 		Timeout       time.Duration
 	}
 	type args struct {

@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/jpillora/backoff"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/operator/helper"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/helper"
 	"go.uber.org/zap"
 )
 

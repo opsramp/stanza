@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/observiq/stanza/entry"
+	"github.com/opsramp/stanza/entry"
 	"github.com/stretchr/testify/require"
 )
 

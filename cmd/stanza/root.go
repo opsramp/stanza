@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"github.com/kardianos/service"
-	"github.com/observiq/stanza/errors"
+	"github.com/opsramp/stanza/errors"
 	"gopkg.in/fsnotify.v1"
 
 	// This package registers its HTTP endpoints for profiling using an init hook
@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	agent "github.com/observiq/stanza/agent"
+	agent "github.com/opsramp/stanza/agent"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )

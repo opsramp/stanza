@@ -3,10 +3,10 @@ package agent
 import (
 	"time"
 
-	"github.com/observiq/stanza/database"
-	"github.com/observiq/stanza/errors"
-	"github.com/observiq/stanza/operator"
-	"github.com/observiq/stanza/plugin"
+	"github.com/opsramp/stanza/database"
+	"github.com/opsramp/stanza/errors"
+	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/plugin"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
