@@ -6,6 +6,7 @@ import (
 	_ "github.com/opsramp/stanza/operator/builtin/input/azure/eventhub"
 	_ "github.com/opsramp/stanza/operator/builtin/input/azure/loganalytics"
 	_ "github.com/opsramp/stanza/operator/builtin/input/file"
+	_ "github.com/opsramp/stanza/operator/builtin/input/filecheck"
 	_ "github.com/opsramp/stanza/operator/builtin/input/forward"
 	_ "github.com/opsramp/stanza/operator/builtin/input/generate"
 	_ "github.com/opsramp/stanza/operator/builtin/input/goflow"
