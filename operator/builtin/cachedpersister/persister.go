@@ -26,7 +26,6 @@ func NewPersister(db database.Database, scope string, flushingInterval helper.Du
 		scope:            scope,
 		flushingInterval: flushingInterval.Duration,
 	}
-
 }
 
 func (b *CachedBoltPersister) StartFlusher(ctx context.Context) {
@@ -110,4 +109,8 @@ func (b *CachedBoltPersister) Get(key string) ([]byte, bool) {
 	id, ok := b.cache[key]
 
 	return id, ok
+}
+
+func (b *CachedBoltPersister) IsEmpty() bool {
+	return len(b.cache) == 0
 }

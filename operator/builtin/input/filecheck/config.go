@@ -1,7 +1,6 @@
 package filecheck
 
 import (
-	"context"
 	"fmt"
 	"github.com/opsramp/stanza/operator/builtin/cachedpersister"
 	"regexp"
@@ -22,20 +21,9 @@ const (
 	defaultMaxConcurrentFiles   = 512
 	defaultFilenameRecallPeriod = time.Minute
 	defaultPollInterval         = 200 * time.Millisecond
-	defaultCheckPointAt         = 10
-	defaultFlushingInterval     = 1 * time.Minute
+	//defaultCheckPointAt         = 10
+	defaultFlushingInterval = 1 * time.Minute
 )
-
-// Persister is a helper used to persist data
-type Persister interface {
-	StartFlusher(ctx context.Context)
-	Get(key string) ([]byte, bool)
-	Put(key string, value []byte)
-	ClearCache()
-	LoadAll() error
-	Flush() error
-	Clear() error
-}
 
 // NewInputConfig creates a new input config with default values
 func NewInputConfig(operatorID string) *InputConfig {
@@ -50,7 +38,6 @@ func NewInputConfig(operatorID string) *InputConfig {
 		FingerprintSize:         defaultFingerprintSize,
 		MaxLogSize:              defaultMaxLogSize,
 		MaxConcurrentFiles:      defaultMaxConcurrentFiles,
-		CheckpointAt:            defaultCheckPointAt,
 		FlushingInterval:        helper.Duration{Duration: defaultFlushingInterval},
 		Encoding:                helper.NewEncodingConfig(),
 		FilenameRecallPeriod:    helper.Duration{Duration: defaultFilenameRecallPeriod},
@@ -66,7 +53,6 @@ type InputConfig struct {
 	FlushingInterval        helper.Duration        `json:"flushing_interval,omitempty"           yaml:"flushing_interval,omitempty"`
 	CheckpointAt            int64                  `json:"checkpoint_at,omitempty"               yaml:"checkpoint_at,omitempty"`
 	Multiline               helper.MultilineConfig `json:"multiline,omitempty"                   yaml:"multiline,omitempty"`
-	CheckpointEnabled       bool                   `json:"checkpoint_enabled,omitempty"          yaml:"checkpoint_enabled,omitempty"`
 	IncludeFileName         bool                   `json:"include_file_name,omitempty"           yaml:"include_file_name,omitempty"`
 	IncludeFilePath         bool                   `json:"include_file_path,omitempty"           yaml:"include_file_path,omitempty"`
 	IncludeFileNameResolved bool                   `json:"include_file_name_resolved,omitempty"  yaml:"include_file_name_resolved,omitempty"`
@@ -193,6 +179,8 @@ func (c InputConfig) Build(context operator.BuildContext) ([]operator.Operator, 
 		SplitFunc:             splitFunc,
 		persister:             cachedpersister.NewPersister(context.Database, c.ID(), c.FlushingInterval),
 		PollInterval:          c.PollInterval.Raw(),
+		CheckpointAt:          c.CheckpointAt,
+		FlushingInterval:      c.FlushingInterval,
 		FilePathField:         filePathField,
 		FileNameField:         fileNameField,
 		FilePathResolvedField: filePathResolvedField,
@@ -203,7 +191,6 @@ func (c InputConfig) Build(context operator.BuildContext) ([]operator.Operator, 
 		labelRegex:            labelRegex,
 		encoding:              encoding,
 		firstCheck:            true,
-		checkpointEnabled:     c.CheckpointEnabled,
 		cancel:                func() {},
 		knownFiles:            make([]*Reader, 0, 10),
 		fingerprintSize:       int(c.FingerprintSize),

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/opsramp/stanza/entry"
 	"github.com/opsramp/stanza/errors"
@@ -54,6 +55,7 @@ type FileIdentifier struct {
 type Reader struct {
 	Fingerprint *Fingerprint
 	persister   Persister
+	path        string
 	Offset      int64
 	eof         bool
 
@@ -73,12 +75,13 @@ type Reader struct {
 }
 
 // NewReader creates a new file reader
-func (f *InputOperator) NewReader(path string, file *os.File, fp *Fingerprint, persister Persister, startAtBeginning bool) (*Reader, error) {
+func (f *InputOperator) NewReader(path string, file *os.File, fp *Fingerprint, persister Persister) (*Reader, error) {
 	r := &Reader{
 		Fingerprint:   fp,
 		persister:     persister,
 		HeaderLabels:  make(map[string]string),
 		file:          file,
+		path:          path,
 		fileInput:     f,
 		SugaredLogger: f.SugaredLogger.With("path", path),
 		decoder:       f.encoding.Encoding.NewDecoder(),
@@ -86,14 +89,15 @@ func (f *InputOperator) NewReader(path string, file *os.File, fp *Fingerprint, p
 		fileLabels:    f.resolveFileLabels(path),
 	}
 
-	//this is new Reader, so we have to check if it has checkpoint
-	if !f.checkCheckpoint(path, r) {
-		r.initializeOffset(startAtBeginning)
+	// this is new Reader, so it's his responsibility to find about his previous life, and resurrect
+	if !f.checkCheckpointAndFP(r, path, fp) {
+		r.initializeOffset(f.startAtBeginning)
 	}
 	return r, nil
 }
 
-func (f *InputOperator) checkCheckpoint(path string, reader *Reader) bool {
+// We need to check both checkpoint and fingerprint
+func (f *InputOperator) checkCheckpointAndFP(reader *Reader, path string, fp *Fingerprint) bool {
 	checkpoint, ok := f.persister.Get(path)
 	if !ok {
 		return false
@@ -104,31 +108,36 @@ func (f *InputOperator) checkCheckpoint(path string, reader *Reader) bool {
 		f.Logger().Errorf("checkpont decoding failed, %s", err)
 		return false
 	}
+
+	// if it's new fingerprint
+	if !id.FingerPrint.StartsWith(fp) {
+		return false
+	}
 	reader.Offset = id.Offset
 	return true
 }
 
 // Copy creates a deep copy of a Reader
-func (f *Reader) Copy(file *os.File) (*Reader, error) {
-	reader, err := f.fileInput.NewReader(f.fileLabels.Path, file, f.Fingerprint.Copy(), f.persister, false)
+func (r *Reader) Copy(file *os.File) (*Reader, error) {
+	reader, err := r.fileInput.NewReader(r.fileLabels.Path, file, r.Fingerprint.Copy(), r.persister)
 	if err != nil {
 		return nil, err
 	}
-	reader.Offset = f.Offset
-	for k, v := range f.HeaderLabels {
+	reader.Offset = r.Offset
+	for k, v := range r.HeaderLabels {
 		reader.HeaderLabels[k] = v
 	}
 	return reader, nil
 }
 
 // initializeOffset sets the starting offset
-func (f *Reader) initializeOffset(startAtBeginning bool) error {
+func (r *Reader) initializeOffset(startAtBeginning bool) error {
 	if !startAtBeginning {
-		info, err := f.file.Stat()
+		info, err := r.file.Stat()
 		if err != nil {
 			return fmt.Errorf("stat: %s", err)
 		}
-		f.Offset = info.Size()
+		r.Offset = info.Size()
 	}
 	return nil
 }
@@ -136,25 +145,32 @@ func (f *Reader) initializeOffset(startAtBeginning bool) error {
 type consumerFunc func(context.Context, []byte) error
 
 // ReadToEnd will read until the end of the file
-func (f *Reader) ReadToEnd(ctx context.Context) {
-	f.readFile(ctx, f.emit)
+func (r *Reader) ReadToEnd(ctx context.Context) {
+	r.readFile(ctx, r.emit)
 }
 
 // ReadHeaders will read a files headers
-func (f *Reader) ReadHeaders(ctx context.Context) {
-	f.readFile(ctx, f.readHeaders)
+func (r *Reader) ReadHeaders(ctx context.Context) {
+	r.readFile(ctx, r.readHeaders)
 }
 
-func (f *Reader) readFile(ctx context.Context, consumer consumerFunc) {
-	f.eof = false
-	if _, err := f.file.Seek(f.Offset, 0); err != nil {
-		f.Errorw("Failed to seek", zap.Error(err))
+func (r *Reader) readFile(ctx context.Context, consumer consumerFunc) {
+	checkPointed := false
+	var checkpointCounter int64
+	if r.fileInput.CheckpointAt > 0 {
+		checkPointed = true
+	}
+	r.eof = false
+	if _, err := r.file.Seek(r.Offset, 0); err != nil {
+		r.Errorw("Failed to seek", zap.Error(err))
 		return
 	}
-	scanner := NewPositionalScanner(f, f.fileInput.MaxLogSize, f.Offset, f.fileInput.SplitFunc)
+	scanner := NewPositionalScanner(r, r.fileInput.MaxLogSize, r.Offset, r.fileInput.SplitFunc)
 
 	// Iterate over the tokenized file
+
 	for {
+
 		select {
 		case <-ctx.Done():
 			return
@@ -163,9 +179,9 @@ func (f *Reader) readFile(ctx context.Context, consumer consumerFunc) {
 
 		if ok := scanner.Scan(); !ok {
 			if err := getScannerError(scanner); err != nil {
-				f.Errorw("Failed during scan", zap.Error(err))
+				r.Errorw("Failed during scan", zap.Error(err))
 			}
-			f.eof = true
+			r.eof = true
 			break
 		}
 		if err := consumer(ctx, scanner.Bytes()); err != nil {
@@ -173,16 +189,49 @@ func (f *Reader) readFile(ctx context.Context, consumer consumerFunc) {
 			if err == errEndOfHeaders {
 				return
 			}
-			f.Error("Failed to consume entry", zap.Error(err))
+			r.Error("Failed to consume entry", zap.Error(err))
 		}
-		f.Offset = scanner.Pos()
+		r.Offset = scanner.Pos()
+		<-time.After(500 * time.Millisecond)
+		if checkPointed {
+			checkpointCounter++
+			if checkpointCounter == r.fileInput.CheckpointAt {
+				r.encodeAndPutToCache(r.Offset)
+				r.persister.Flush()
+				checkpointCounter = 0
+			}
+		}
 	}
+
+	// when file completely read, we need to save offset
+	r.encodeAndPutToCache(r.Offset)
+}
+
+func (r *Reader) encodeAndPutToCache(offset int64) {
+	encoded, err := r.encodeFileIdentifier(offset)
+	if err != nil {
+		r.SugaredLogger.Errorf("error encoding checkpoint for file %s, err:%s", r.path, err)
+	}
+	r.persister.Put(r.path, encoded)
+}
+
+func (r *Reader) encodeFileIdentifier(offset int64) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	fileID := &FileIdentifier{
+		FingerPrint: r.Fingerprint,
+		Offset:      offset,
+	}
+	if err := enc.Encode(fileID); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 var errEndOfHeaders = fmt.Errorf("finished header parsing, no header found")
 
-func (f *Reader) readHeaders(_ context.Context, msgBuf []byte) error {
-	byteMatches := f.fileInput.labelRegex.FindSubmatch(msgBuf)
+func (r *Reader) readHeaders(_ context.Context, msgBuf []byte) error {
+	byteMatches := r.fileInput.labelRegex.FindSubmatch(msgBuf)
 	if len(byteMatches) != 3 {
 		// return early, assume this failure means the file does not
 		// contain anymore headers
@@ -192,78 +241,78 @@ func (f *Reader) readHeaders(_ context.Context, msgBuf []byte) error {
 	for i, byteSlice := range byteMatches {
 		matches[i] = string(byteSlice)
 	}
-	if f.HeaderLabels == nil {
-		f.HeaderLabels = make(map[string]string)
+	if r.HeaderLabels == nil {
+		r.HeaderLabels = make(map[string]string)
 	}
-	f.HeaderLabels[matches[1]] = matches[2]
+	r.HeaderLabels[matches[1]] = matches[2]
 	return nil
 }
 
 // Close will close the file
-func (f *Reader) Close() {
-	if f.file != nil {
-		if err := f.file.Close(); err != nil {
-			f.Warnf("Problem closing reader", "Error", err.Error())
+func (r *Reader) Close() {
+	if r.file != nil {
+		if err := r.file.Close(); err != nil {
+			r.Warnf("Problem closing reader", "Error", err.Error())
 		}
 	}
 }
 
 // Emit creates an entry with the decoded message and sends it to the next
 // operator in the pipeline
-func (f *Reader) emit(ctx context.Context, msgBuf []byte) error {
+func (r *Reader) emit(ctx context.Context, msgBuf []byte) error {
 	// Skip the entry if it's empty
 	if len(msgBuf) == 0 {
 		return nil
 	}
 
-	msg, err := f.decode(msgBuf)
+	msg, err := r.decode(msgBuf)
 	if err != nil {
 		return fmt.Errorf("decode: %s", err)
 	}
 
-	e, err := f.fileInput.NewEntry(msg)
+	e, err := r.fileInput.NewEntry(msg)
 	if err != nil {
 		return fmt.Errorf("create entry: %s", err)
 	}
 
-	if err := e.Set(f.fileInput.FilePathField, f.fileLabels.Path); err != nil {
+	if err := e.Set(r.fileInput.FilePathField, r.fileLabels.Path); err != nil {
 		return err
 	}
-	if err := e.Set(f.fileInput.FileNameField, filepath.Base(f.fileLabels.Path)); err != nil {
+	if err := e.Set(r.fileInput.FileNameField, filepath.Base(r.fileLabels.Path)); err != nil {
 		return err
 	}
 
-	if err := e.Set(f.fileInput.FilePathResolvedField, f.fileLabels.ResolvedPath); err != nil {
+	if err := e.Set(r.fileInput.FilePathResolvedField, r.fileLabels.ResolvedPath); err != nil {
 		return err
 	}
-	if err := e.Set(f.fileInput.FileNameResolvedField, f.fileLabels.ResolvedName); err != nil {
+	if err := e.Set(r.fileInput.FileNameResolvedField, r.fileLabels.ResolvedName); err != nil {
 		return err
 	}
 
 	// Set W3C headers as labels
-	for k, v := range f.HeaderLabels {
+	for k, v := range r.HeaderLabels {
 		field := entry.NewLabelField(k)
 		if err := e.Set(field, v); err != nil {
 			return err
 		}
 	}
 
-	f.fileInput.Write(ctx, e)
+	r.fileInput.Write(ctx, e)
 	return nil
 }
 
 // decode converts the bytes in msgBuf to utf-8 from the configured encoding
-func (f *Reader) decode(msgBuf []byte) (string, error) {
+func (r *Reader) decode(msgBuf []byte) (string, error) {
 	for {
-		f.decoder.Reset()
-		nDst, _, err := f.decoder.Transform(f.decodeBuffer, msgBuf, true)
+		r.decoder.Reset()
+		nDst, _, err := r.decoder.Transform(r.decodeBuffer, msgBuf, true)
 		if err != nil && err == transform.ErrShortDst {
-			f.decodeBuffer = make([]byte, len(f.decodeBuffer)*2)
+			r.decodeBuffer = make([]byte, len(r.decodeBuffer)*2)
 			continue
 		} else if err != nil {
 			return "", fmt.Errorf("transform encoding: %s", err)
 		}
-		return string(f.decodeBuffer[:nDst]), nil
+		return string(r.decodeBuffer[:nDst]), nil
 	}
 }
 
@@ -276,13 +325,13 @@ func getScannerError(scanner *PositionalScanner) error {
 	}
 	return nil
 }
-func (f *Reader) Read(dst []byte) (int, error) {
-	if len(f.Fingerprint.FirstBytes) == f.fileInput.fingerprintSize {
-		return f.file.Read(dst)
+func (r *Reader) Read(dst []byte) (int, error) {
+	if len(r.Fingerprint.FirstBytes) == r.fileInput.fingerprintSize {
+		return r.file.Read(dst)
 	}
-	n, err := f.file.Read(dst)
-	appendCount := min0(n, f.fileInput.fingerprintSize-int(f.Offset))
-	f.Fingerprint.FirstBytes = append(f.Fingerprint.FirstBytes[:f.Offset], dst[:appendCount]...)
+	n, err := r.file.Read(dst)
+	appendCount := min0(n, r.fileInput.fingerprintSize-int(r.Offset))
+	r.Fingerprint.FirstBytes = append(r.Fingerprint.FirstBytes[:r.Offset], dst[:appendCount]...)
 	return n, err
 }
 

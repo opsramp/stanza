@@ -39,7 +39,8 @@ type InputOperator struct {
 	startAtBeginning bool
 	deleteAfterRead  bool
 
-	checkpointEnabled bool
+	CheckpointAt     int64
+	FlushingInterval helper.Duration
 
 	fingerprintSize int
 
@@ -81,7 +82,7 @@ func (f *InputOperator) Stop() error {
 func (f *InputOperator) startPoller(ctx context.Context) {
 
 	f.persister.LoadAll()
-	f.persister.StartFlusher(ctx)
+	go f.persister.StartFlusher(ctx)
 
 	f.wg.Add(1)
 	go func() {
@@ -102,6 +103,12 @@ func (f *InputOperator) startPoller(ctx context.Context) {
 
 // poll checks all the watched paths for new entries
 func (f *InputOperator) poll(ctx context.Context) {
+
+	// this is if previous poll has been crashed
+	if f.persister.IsEmpty() {
+		f.persister.LoadAll()
+	}
+
 	f.maxBatchFiles = f.MaxConcurrentFiles / 2
 	var matches []string
 	if len(f.queuedMatches) > f.maxBatchFiles {
@@ -175,7 +182,8 @@ func (f *InputOperator) poll(ctx context.Context) {
 		f.lastPollReaders = readers
 	}
 
-	f.saveCurrent(readers)
+	f.persister.Flush()
+	//f.saveCurrent(readers)
 }
 
 // makeReaders takes a list of paths, then creates readers from each of those paths,
@@ -284,8 +292,7 @@ func (f *InputOperator) saveCurrent(readers []*Reader) {
 }
 
 func (f *InputOperator) newReader(ctx context.Context, file *os.File, fp *Fingerprint, firstCheck bool) (*Reader, error) {
-	// Check if the new path has the same fingerprint as an old path
-	if oldReader, ok := f.findFingerprintMatch(fp); ok {
+	/*if oldReader, ok := f.findFingerprintMatch(fp); ok {
 		newReader, err := oldReader.Copy(file)
 		if err != nil {
 			return nil, err
@@ -301,16 +308,21 @@ func (f *InputOperator) newReader(ctx context.Context, file *os.File, fp *Finger
 		return nil, err
 	}
 	if f.labelRegex != nil {
-		/*if err := newReader.readHeaders(ctx); err != nil {
+		if err := newReader.readHeaders(ctx); err != nil {
 			f.Errorf("error while reading file headers: %s", err)
-		}*/
+		}
 		newReader.ReadHeaders(ctx)
 	}
 	/*startAtBeginning := !firstCheck || f.startAtBeginning
 	if err := newReader.initializeOffset(startAtBeginning); err != nil {
 		return nil, fmt.Errorf("initialize offset: %s", err)
 	}*/
-	return newReader, nil
+
+	newReader, err := f.NewReader(file.Name(), file, fp, f.persister)
+	if f.labelRegex != nil {
+		newReader.ReadHeaders(ctx)
+	}
+	return newReader, err
 }
 
 func (f *InputOperator) findFingerprintMatch(fp *Fingerprint) (*Reader, bool) {

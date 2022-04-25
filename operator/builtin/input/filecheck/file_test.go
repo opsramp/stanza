@@ -791,7 +791,8 @@ func TestFileReader_FingerprintUpdated(t *testing.T) {
 	tempCopy := openFile(t, temp.Name())
 	fp, err := operator.NewFingerprint(temp)
 	require.NoError(t, err)
-	reader, err := operator.NewReader(temp.Name(), tempCopy, fp)
+
+	reader, err := operator.NewReader(temp.Name(), tempCopy, fp, nil)
 	require.NoError(t, err)
 	defer reader.Close()
 
@@ -832,7 +833,7 @@ func TestFingerprintGrowsAndStops(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, []byte(""), fp.FirstBytes)
 
-			reader, err := operator.NewReader(temp.Name(), tempCopy, fp)
+			reader, err := operator.NewReader(temp.Name(), tempCopy, fp, nil)
 			require.NoError(t, err)
 			defer reader.Close()
 
@@ -957,7 +958,7 @@ func TestCreateTempLog(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < 50; i++ {
-		writeString(t, f, "["+time.Now().String()+"] This is test OpsRamp log record # "+strconv.Itoa(i)+"\n")
+		writeString(t, f, "["+time.Now().String()+"] This is test ANTON log record # "+strconv.Itoa(i)+"\n")
 	}
 
 }
@@ -968,7 +969,7 @@ func TestAddTempLog(t *testing.T) {
 
 	require.NoError(t, err)
 	for i := 500; i < 1000; i++ {
-		writeString(t, f, "["+time.Now().String()+"] This is test OpsRamp log record # "+strconv.Itoa(i)+"\n")
+		writeString(t, f, "["+time.Now().String()+"] This is test ANTON log record # "+strconv.Itoa(i)+"\n")
 	}
 
 }
