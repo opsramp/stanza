@@ -159,6 +159,9 @@ func runWatcher(serviceWG *sync.WaitGroup, flags *RootFlags, logger *zap.Sugared
 	}
 	watcher.Add(flags.ConfigFiles[0])
 
+	//we need this var to avoid it's shadowing
+	var ctx context.Context
+
 	for {
 		select {
 		case <-sigChan:
@@ -168,7 +171,7 @@ func runWatcher(serviceWG *sync.WaitGroup, flags *RootFlags, logger *zap.Sugared
 			if event.Op == fsnotify.Write {
 				logger.Debug("New configuration detected, reload pipeline...")
 				cancel()
-				ctx, cancel := context.WithCancel(command.Context())
+				ctx, cancel = context.WithCancel(command.Context())
 				service, err := buildService(ctx, cancel, logger, flags)
 				if err != nil {
 					logger.Errorw("Failed to run new config", zap.Any("error", err))

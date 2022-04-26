@@ -38,7 +38,6 @@ func NewInputConfig(operatorID string) *InputConfig {
 		FingerprintSize:         defaultFingerprintSize,
 		MaxLogSize:              defaultMaxLogSize,
 		MaxConcurrentFiles:      defaultMaxConcurrentFiles,
-		FlushingInterval:        helper.Duration{Duration: defaultFlushingInterval},
 		Encoding:                helper.NewEncodingConfig(),
 		FilenameRecallPeriod:    helper.Duration{Duration: defaultFilenameRecallPeriod},
 	}

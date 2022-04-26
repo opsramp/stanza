@@ -11,7 +11,7 @@ import (
 	_ "github.com/opsramp/stanza/operator/builtin/input/generate"
 	_ "github.com/opsramp/stanza/operator/builtin/input/goflow"
 	_ "github.com/opsramp/stanza/operator/builtin/input/http"
-	_ "github.com/opsramp/stanza/operator/builtin/input/journald"
+	//_ "github.com/opsramp/stanza/operator/builtin/input/journald"
 	_ "github.com/opsramp/stanza/operator/builtin/input/k8sevent"
 	_ "github.com/opsramp/stanza/operator/builtin/input/stanza"
 	_ "github.com/opsramp/stanza/operator/builtin/input/stdin"

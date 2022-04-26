@@ -168,7 +168,6 @@ func (r *Reader) readFile(ctx context.Context, consumer consumerFunc) {
 	scanner := NewPositionalScanner(r, r.fileInput.MaxLogSize, r.Offset, r.fileInput.SplitFunc)
 
 	// Iterate over the tokenized file
-
 	for {
 
 		select {
@@ -212,12 +211,18 @@ func (r *Reader) encodeAndPutToCache(offset int64) {
 	if err != nil {
 		r.SugaredLogger.Errorf("error encoding checkpoint for file %s, err:%s", r.path, err)
 	}
+	id := new(FileIdentifier)
+	dec := json.NewDecoder(bytes.NewReader(encoded))
+	if err := dec.Decode(&id); err != nil {
+		print(err)
+	}
+
 	r.persister.Put(r.path, encoded)
 }
 
 func (r *Reader) encodeFileIdentifier(offset int64) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
+	buf := new(bytes.Buffer)
+	enc := json.NewEncoder(buf)
 	fileID := &FileIdentifier{
 		FingerPrint: r.Fingerprint,
 		Offset:      offset,
@@ -225,6 +230,13 @@ func (r *Reader) encodeFileIdentifier(offset int64) ([]byte, error) {
 	if err := enc.Encode(fileID); err != nil {
 		return nil, err
 	}
+
+	id := new(FileIdentifier)
+	dec := json.NewDecoder(bytes.NewReader(buf.Bytes()))
+	if err := dec.Decode(&id); err != nil {
+		print(err)
+	}
+
 	return buf.Bytes(), nil
 }
 

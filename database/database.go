@@ -4,11 +4,9 @@ package database
 
 import (
 	"fmt"
+	"go.etcd.io/bbolt"
 	"os"
 	"path/filepath"
-	"time"
-
-	"go.etcd.io/bbolt"
 )
 
 // Database is a database used to save offsets
@@ -58,6 +56,6 @@ func OpenDatabase(file string) (Database, error) {
 		}
 	}
 
-	options := &bbolt.Options{Timeout: 1 * time.Second}
-	return bbolt.Open(file, 0600, options)
+	//options := &bbolt.Options{Timeout: 2 * time.Second}
+	return bbolt.Open(file, 0600, nil)
 }

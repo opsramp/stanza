@@ -72,6 +72,7 @@ func (f *InputOperator) Stop() error {
 	for _, reader := range f.lastPollReaders {
 		reader.Close()
 	}
+	f.persister.Flush()
 	f.knownFiles = nil
 	f.cancel = nil
 	return nil
@@ -82,7 +83,9 @@ func (f *InputOperator) Stop() error {
 func (f *InputOperator) startPoller(ctx context.Context) {
 
 	f.persister.LoadAll()
-	go f.persister.StartFlusher(ctx)
+	if f.FlushingInterval.Raw().Nanoseconds() > 0 {
+		go f.persister.StartFlusher(ctx)
+	}
 
 	f.wg.Add(1)
 	go func() {

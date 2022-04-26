@@ -1,7 +1,9 @@
 package cachedpersister
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/opsramp/stanza/operator/helper"
 	"sync"
@@ -14,7 +16,7 @@ import (
 type CachedBoltPersister struct {
 	db               database.Database
 	cache            map[string][]byte
-	mux              sync.Mutex
+	mux              sync.RWMutex
 	scope            string
 	flushingInterval time.Duration
 }
@@ -53,6 +55,8 @@ func (b *CachedBoltPersister) LoadAll() error {
 		}
 
 		c := bucket.Cursor()
+		b.mux.Lock()
+		defer b.mux.Unlock()
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			b.cache[string(k)] = v
 		}
@@ -68,14 +72,21 @@ func (b *CachedBoltPersister) Flush() error {
 			return err
 		}
 
-		b.mux.Lock()
+		b.mux.RLock()
+		defer b.mux.RUnlock()
 		for k, v := range b.cache {
+			id := new(FileIdentifier)
+			dec := json.NewDecoder(bytes.NewReader(v))
+			if err := dec.Decode(&id); err != nil {
+				print(err)
+			}
+
 			err := bucket.Put([]byte(k), v)
 			if err != nil {
 				return err
 			}
 		}
-		b.mux.Unlock()
+
 		return nil
 	})
 }
@@ -94,7 +105,18 @@ func (b *CachedBoltPersister) Clear() error {
 }
 
 func (b *CachedBoltPersister) ClearCache() {
+	b.mux.Lock()
+	defer b.mux.Unlock()
 	b.cache = make(map[string][]byte)
+}
+
+type FileIdentifier struct {
+	FingerPrint Fingerprint
+	Offset      int64
+}
+type Fingerprint struct {
+	// FirstBytes represents the first N bytes of a file
+	FirstBytes []byte
 }
 
 func (b *CachedBoltPersister) Put(key string, value []byte) {
@@ -104,8 +126,8 @@ func (b *CachedBoltPersister) Put(key string, value []byte) {
 }
 
 func (b *CachedBoltPersister) Get(key string) ([]byte, bool) {
-	b.mux.Lock()
-	defer b.mux.Unlock()
+	b.mux.RLock()
+	defer b.mux.RUnlock()
 	id, ok := b.cache[key]
 
 	return id, ok

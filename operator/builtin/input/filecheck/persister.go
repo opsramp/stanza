@@ -7,7 +7,6 @@ type Persister interface {
 	StartFlusher(ctx context.Context)
 	Get(key string) ([]byte, bool)
 	Put(key string, value []byte)
-	ClearCache()
 	LoadAll() error
 	Flush() error
 	Clear() error

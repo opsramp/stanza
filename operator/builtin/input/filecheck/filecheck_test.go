@@ -953,12 +953,12 @@ func TestEncodings(t *testing.T) {
 }
 
 func TestCreateTempLog(t *testing.T) {
-	f, err := os.Create("/Users/antonchirikalov/dev/github.com/opsramp/stanza/test.log")
+	f, err := os.Create("/Users/antonchirikalov/dev/github.com/opsramp/stanza/test/test3.log")
 	defer f.Close()
 	require.NoError(t, err)
 
-	for i := 0; i < 50; i++ {
-		writeString(t, f, "["+time.Now().String()+"] This is test ANTON log record # "+strconv.Itoa(i)+"\n")
+	for i := 0; i < 1000; i++ {
+		writeString(t, f, "["+time.Now().String()+"] This is TEST3 log record # "+strconv.Itoa(i)+"\n")
 	}
 
 }
