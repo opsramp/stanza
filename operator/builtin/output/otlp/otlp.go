@@ -2,10 +2,7 @@ package otlp
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 	"sync"
 
 	"github.com/google/uuid"
@@ -50,12 +47,6 @@ func (o *OtlpOutput) Start() error {
 
 	if !o.config.RetryDisabled {
 		opts = append(opts, grpc.WithDisableRetry())
-	}
-
-	if o.config.TLS.EnableTLS {
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{ServerName: o.config.Endpoint, MinVersion: tls.VersionTLS12, InsecureSkipVerify: o.config.TLS.InsecureSkipVerify})))
-	} else {
-		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
 	if o.config.Timeout > 0 {

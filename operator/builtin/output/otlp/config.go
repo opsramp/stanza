@@ -22,19 +22,13 @@ type Headers struct {
 	Authorization string `json:"authorization" yaml:"authorization"`
 }
 
-// TLS defines tls settings for gRPC client configuration.
-type TLS struct {
-	EnableTLS          bool `json:"enable_tls" yaml:"enable_tls"`
-	InsecureSkipVerify bool `json:"insecure_skip_verify" yaml:"insecure_skip_verify"`
-}
-
 // OtlpConfig is the configuration of an otlp output operation.
 type OtlpConfig struct {
 	helper.OutputConfig `yaml:",inline"`
 	BufferConfig        buffer.Config  `json:"buffer,omitempty" yaml:"buffer,omitempty"`
 	FlusherConfig       flusher.Config `json:"flusher,omitempty" yaml:"flusher,omitempty"`
 	Endpoint            string         `json:"endpoint" yaml:"endpoint"`
-	TLS                 TLS            `json:"tls" yaml:"tls"`
+	Insecure            string         `json:"insecure" yaml:"insecure"`
 	Headers             `json:"headers" yaml:"headers"`
 	RetryDisabled       bool          `json:"retry_on_failure" yaml:"retry_on_failure"`
 	Timeout             time.Duration `json:"timeout" yaml:"timeout"`
