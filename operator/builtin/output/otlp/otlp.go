@@ -2,7 +2,10 @@ package otlp
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"sync"
 
 	"github.com/google/uuid"
@@ -17,7 +20,6 @@ import (
 	"github.com/opsramp/stanza/operator/helper"
 	"go.opentelemetry.io/collector/model/otlpgrpc"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 func init() {
@@ -50,7 +52,11 @@ func (o *OtlpOutput) Start() error {
 		opts = append(opts, grpc.WithDisableRetry())
 	}
 
-	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if o.config.TLS.EnableTLS {
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{ServerName: o.config.Endpoint, MinVersion: tls.VersionTLS12, InsecureSkipVerify: o.config.TLS.InsecureSkipVerify})))
+	} else {
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
 
 	if o.config.Timeout > 0 {
 		ctx, _ = context.WithTimeout(ctx, o.config.Timeout)
