@@ -28,8 +28,9 @@ func TestOtlpOperator(t *testing.T) {
 			EnableTLS:          false,
 			InsecureSkipVerify: true,
 		},
-		Headers: Headers{Authorization: "test"},
-		Timeout: 5,
+		BufferConfig: buffer.NewConfig(),
+		Headers:      Headers{Authorization: "test"},
+		Timeout:      5,
 	}
 
 	ops, err := cfg.Build(testutil.NewBuildContext(t))

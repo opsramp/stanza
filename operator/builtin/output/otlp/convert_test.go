@@ -1,10 +1,11 @@
 package otlp
 
 import (
-	"github.com/opsramp/stanza/entry"
-	"github.com/stretchr/testify/require"
 	"strconv"
 	"testing"
+
+	"github.com/opsramp/stanza/entry"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_buildProtoRequest(t *testing.T) {
