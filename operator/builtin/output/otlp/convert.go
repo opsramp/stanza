@@ -1,7 +1,9 @@
 package otlp
 
 import (
+	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/opsramp/stanza/entry"
 	"go.opentelemetry.io/collector/model/otlpgrpc"
@@ -9,15 +11,51 @@ import (
 )
 
 func buildProtoRequest(entries []*entry.Entry) otlpgrpc.LogsRequest {
+
+	// partitioning entries based on their resource labels
+	// TODO: add the partitioning logic before it reaches the OTEL output handler
+	partitionedEntries := map[string][]*entry.Entry{}
+	for _, value := range entries {
+		// building a unique key based on resource label values
+		keys := []string{}
+		for labelKey, _ := range value.Resource {
+			keys = append(keys, labelKey)
+		}
+		sort.Strings(keys)
+		uniqueKey := ""
+		for _, key := range keys {
+			uniqueKey = fmt.Sprintf("%s|%s:%s", uniqueKey, key, value.Resource[key])
+		}
+
+		if entryList, ok := partitionedEntries[uniqueKey]; ok {
+			partitionedEntries[uniqueKey] = append(entryList, value)
+		} else {
+			partitionedEntries[uniqueKey] = []*entry.Entry{value}
+		}
+	}
+
 	logRequest := otlpgrpc.NewLogsRequest()
 	pLogs := pdata.NewLogs()
-	rl := pLogs.ResourceLogs().AppendEmpty()
-	ill := rl.InstrumentationLibraryLogs().AppendEmpty()
+	rl := pLogs.ResourceLogs()
 
-	for _, entry := range entries {
-		logRec := ill.LogRecords().AppendEmpty()
-		convertEntryToLogRecord(entry, logRec)
+	for _, entryList := range partitionedEntries {
+		resourceLog := rl.AppendEmpty()
+		ill := resourceLog.InstrumentationLibraryLogs().AppendEmpty()
+
+		for index, entry := range entryList {
+			// assigning the resource labels during the first iteration
+			// (will only be done once since all the records have same resource labels)
+			if index == 0 {
+				for key, value := range entry.Resource {
+					resourceLog.Resource().Attributes().InsertString(key, value)
+				}
+			}
+
+			logRec := ill.LogRecords().AppendEmpty()
+			convertEntryToLogRecord(entry, logRec)
+		}
 	}
+
 	logRequest.SetLogs(pLogs)
 	return logRequest
 
@@ -28,56 +66,36 @@ func convertEntryToLogRecord(entry *entry.Entry, dest pdata.LogRecord) {
 	dest.SetTimestamp(pdata.NewTimestampFromTime(entry.Timestamp))
 	dest.SetSeverityNumber(sevMap[entry.Severity])
 	dest.SetSeverityText(sevTextMap[entry.Severity])
-	insertToAttributeVal(entry.Record, dest.Body())
+
+	insertToAttributeVal(entry.Record, entry.Resource, entry.Labels, dest.Body())
+	for key, value := range entry.Labels {
+		dest.Attributes().InsertString(key, value)
+	}
 }
 
-func insertToAttributeVal(value interface{}, dest pdata.AttributeValue) {
-	switch t := value.(type) {
-	case bool:
-		dest.SetBoolVal(t)
-	case string:
-		dest.SetStringVal(t)
+func insertToAttributeVal(record interface{}, resourceLabels, logLabels map[string]string, dest pdata.AttributeValue) {
+	bodyJson := map[string]interface{}{}
+
+	// adding resourceLabels and logLabels to Body
+	for key, value := range resourceLabels {
+		bodyJson[key] = value
+	}
+	for key, value := range logLabels {
+		bodyJson[key] = value
+	}
+
+	switch t := record.(type) {
 	case []byte:
-		dest.SetStringVal(string(t))
-	case int64:
-		dest.SetIntVal(t)
-	case int32:
-		dest.SetIntVal(int64(t))
-	case int16:
-		dest.SetIntVal(int64(t))
-	case int8:
-		dest.SetIntVal(int64(t))
-	case int:
-		dest.SetIntVal(int64(t))
-	case uint64:
-		dest.SetIntVal(int64(t))
-	case uint32:
-		dest.SetIntVal(int64(t))
-	case uint16:
-		dest.SetIntVal(int64(t))
-	case uint8:
-		dest.SetIntVal(int64(t))
-	case uint:
-		dest.SetIntVal(int64(t))
-	case float64:
-		dest.SetDoubleVal(t)
-	case float32:
-		dest.SetDoubleVal(float64(t))
-	case []interface{}:
-		toAttributeArray(t).CopyTo(dest)
+		bodyJson["message"] = string(t)
+	case map[string]interface{}:
+		b, _ := json.Marshal(t)
+		bodyJson["message"] = string(b)
 	default:
-		dest.SetStringVal(fmt.Sprintf("%v", t))
+		bodyJson["message"] = fmt.Sprintf("%v", t)
 	}
-}
 
-func toAttributeArray(obsArr []interface{}) pdata.AttributeValue {
-	arrVal := pdata.NewAttributeValueArray()
-	arr := arrVal.SliceVal()
-	arr.EnsureCapacity(len(obsArr))
-	for _, v := range obsArr {
-		insertToAttributeVal(v, arr.AppendEmpty())
-	}
-	return arrVal
+	b, _ := json.Marshal(bodyJson)
+	dest.SetStringVal(string(b))
 }
 
 var sevMap = map[entry.Severity]pdata.SeverityNumber{
