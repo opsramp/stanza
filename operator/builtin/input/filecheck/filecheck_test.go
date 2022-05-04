@@ -15,7 +15,6 @@ import (
 	"github.com/opsramp/stanza/operator/helper"
 	"github.com/opsramp/stanza/testutil"
 	"github.com/stretchr/testify/require"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 func TestCleanStop(t *testing.T) {
@@ -798,49 +797,4 @@ func TestEncodings(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestCreateTempLog(t *testing.T) {
-	f, err := os.Create("/Users/antonchirikalov/dev/github.com/opsramp/stanza/test/test_bench.log")
-	defer f.Close()
-	require.NoError(t, err)
-
-	for i := 1; i < 100000; i++ {
-		writeString(t, f, "["+time.Now().String()+"] This is TEST3 log record # "+strconv.Itoa(i)+"\n")
-	}
-
-}
-
-func TestLevelDB(t *testing.T) {
-	db, err := leveldb.OpenFile("./test/foo.db", nil)
-	if err != nil {
-		require.NoError(t, err)
-	}
-	defer db.Close()
-
-	//	err = db.Put([]byte("fizz"), []byte("buzz"), nil)
-	//	err = db.Put([]byte("fizz2"), []byte("buzz2"), nil)
-	//	err = db.Put([]byte("fizz3"), []byte("buzz3"), nil)
-
-	iter := db.NewIterator(nil, nil)
-	for iter.Next() {
-		key := iter.Key()
-		value := iter.Value()
-		fmt.Printf("key: %s | value: %s\n", key, value)
-	}
-
-	for ok := iter.Seek([]byte("fizz2")); ok; ok = iter.Next() {
-		key := iter.Key()
-		value := iter.Value()
-		fmt.Printf("key: %s | value: %s\n", key, value)
-	}
-
-	for ok := iter.First(); ok; ok = iter.Next() {
-		key := iter.Key()
-		value := iter.Value()
-		fmt.Printf("key: %s | value: %s\n", key, value)
-	}
-
-	iter.Release()
-	err = iter.Error()
 }
