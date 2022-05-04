@@ -1,4 +1,4 @@
-package cachedpersister
+package boltdbpersister
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-const test_scope = "test_scope"
+const testScope = "testScope"
 
 type PersisterTestSuite struct {
 	suite.Suite
@@ -44,20 +44,12 @@ func TestPersisterSuite(t *testing.T) {
 }
 
 func (p *PersisterTestSuite) TestBoltPersisterGet() {
-	value, ok := p.persister.Get("key1")
-	p.False(ok)
+	value := p.persister.Get("key1")
+	p.Nil(value)
 	p.fillTestValues()
-	p.persister.Flush()
-	p.persister.ClearCache()
 
-	value, ok = p.persister.Get("key1")
-	p.False(ok)
-
-	err := p.persister.LoadAll()
-	p.Nil(err)
-
-	value, ok = p.persister.Get("key1")
-	p.True(ok)
+	value = p.persister.Get("key1")
+	p.NotNil(value)
 
 	id := new(filecheck.FileIdentifier)
 	dec := json.NewDecoder(bytes.NewReader(value))
@@ -65,8 +57,8 @@ func (p *PersisterTestSuite) TestBoltPersisterGet() {
 	p.Equal(id.FingerPrint.FirstBytes, []byte("test99"))
 	p.Equal(id.Offset, int64(99))
 
-	value, ok = p.persister.Get("key2")
-	p.True(ok)
+	value = p.persister.Get("key2")
+	p.NotNil(value)
 
 	dec = json.NewDecoder(bytes.NewReader(value))
 	dec.Decode(&id)
@@ -80,11 +72,10 @@ func (p *PersisterTestSuite) TestTicker() {
 	p.SetupSuite()
 	p.fillTestValues()
 	//wait for flushing
-	<-time.After(2 * time.Second)
-	p.persister.ClearCache()
-	p.persister.LoadAll()
-	_, ok := p.persister.Get("key1")
-	p.True(ok)
+	<-time.After(1 * time.Second)
+
+	value := p.persister.Get("key1")
+	p.NotNil(value)
 
 }
 

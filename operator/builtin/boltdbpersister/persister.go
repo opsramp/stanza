@@ -1,4 +1,4 @@
-package cachedpersister
+package boltdbpersister
 
 import (
 	"bytes"
@@ -10,30 +10,36 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-type CachedBoltPersister struct {
+// BoltPersister BoltDB implementation
+type BoltPersister struct {
 	db               database.Database
 	scope            string
 	flushingInterval time.Duration
 }
 
-func NewPersister(db database.Database, scope string, flushingInterval helper.Duration) *CachedBoltPersister {
-	return &CachedBoltPersister{
+// NewPersister -
+func NewPersister(db database.Database, scope string, flushingInterval helper.Duration) *BoltPersister {
+	return &BoltPersister{
 		db:               db,
 		scope:            scope,
 		flushingInterval: flushingInterval.Duration,
 	}
 }
 
+// FileIdentifier -
 type FileIdentifier struct {
 	FingerPrint Fingerprint
 	Offset      int64
 }
+
+// Fingerprint -
 type Fingerprint struct {
 	// FirstBytes represents the first N bytes of a file
 	FirstBytes []byte
 }
 
-func (b *CachedBoltPersister) Put(key string, value []byte) error {
+// Put value to storage
+func (b *BoltPersister) Put(key string, value []byte) error {
 
 	return b.db.Update(func(tx *bbolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(b.scope))
@@ -51,7 +57,8 @@ func (b *CachedBoltPersister) Put(key string, value []byte) error {
 
 }
 
-func (b *CachedBoltPersister) Get(key string) []byte {
+// Get By key
+func (b *BoltPersister) Get(key string) []byte {
 	var value []byte
 	b.db.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte(b.scope))

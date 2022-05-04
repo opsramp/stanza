@@ -32,54 +32,6 @@ func TestBufferUnmarshalYAML(t *testing.T) {
 			},
 			false,
 		},
-		{
-			"SimpleDisk",
-			[]byte("type: disk\nmax_size: 1234\npath: /var/log/testpath\n"),
-			[]byte(`{"type": "disk", "max_size": 1234, "path": "/var/log/testpath"}`),
-			Config{
-				Builder: &DiskBufferConfig{
-					Type:          "disk",
-					MaxSize:       1234,
-					Path:          "/var/log/testpath",
-					Sync:          true,
-					MaxChunkDelay: helper.NewDuration(time.Second),
-					MaxChunkSize:  1000,
-				},
-			},
-			false,
-		},
-		{
-			"UnknownType",
-			[]byte("type: invalid\n"),
-			[]byte(`{"type": "invalid"}`),
-			Config{
-				Builder: &DiskBufferConfig{
-					Type:          "disk",
-					MaxSize:       1234,
-					Path:          "/var/log/testpath",
-					Sync:          true,
-					MaxChunkDelay: helper.NewDuration(time.Second),
-					MaxChunkSize:  1000,
-				},
-			},
-			true,
-		},
-		{
-			"InvalidType",
-			[]byte("type: !!float 123\n"),
-			[]byte(`{"type": 12}`),
-			Config{
-				Builder: &DiskBufferConfig{
-					Type:          "disk",
-					MaxSize:       1234,
-					Path:          "/var/log/testpath",
-					Sync:          true,
-					MaxChunkDelay: helper.NewDuration(time.Second),
-					MaxChunkSize:  1000,
-				},
-			},
-			true,
-		},
 	}
 
 	for _, tc := range cases {

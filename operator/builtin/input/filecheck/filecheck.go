@@ -31,9 +31,9 @@ type InputOperator struct {
 
 	persister Persister
 
-	queuedMatches   []string
-	maxBatchFiles   int
-	lastPollReaders []*Reader
+	queuedMatches []string
+	maxBatchFiles int
+	prevReaders   []*Reader
 
 	startAtBeginning bool
 	deleteAfterRead  bool
@@ -66,7 +66,7 @@ func (f *InputOperator) Start() error {
 func (f *InputOperator) Stop() error {
 	f.cancel()
 	f.wg.Wait()
-	for _, reader := range f.lastPollReaders {
+	for _, reader := range f.prevReaders {
 		reader.Close()
 	}
 	f.cancel = nil
@@ -117,10 +117,6 @@ func (f *InputOperator) poll(ctx context.Context) {
 	}
 	wg.Wait()
 
-	for _, reader := range readers {
-		reader.Close()
-	}
-
 	if f.deleteAfterRead {
 		f.Debug("cleaning up log files that have been fully consumed")
 		for _, reader := range readers {
@@ -128,8 +124,9 @@ func (f *InputOperator) poll(ctx context.Context) {
 				f.Errorf("could not delete %s", reader.file.Name())
 			}
 		}
+		return
 	}
-
+	f.prevReaders = readers
 }
 
 // makeReaders takes a list of paths, then creates readers from each of those paths,
@@ -148,14 +145,7 @@ func (f *InputOperator) makeReaders(ctx context.Context, filePaths []string) []*
 
 	files := make([]*os.File, 0, len(filePaths))
 	for _, path := range filePaths {
-		if _, ok := f.SeenPaths[path]; !ok {
-			f.SeenPaths[path] = now
-			if f.startAtBeginning {
-				f.Infow("Started watching file", "path", path)
-			} else {
-				f.Infow("Started watching file from end. To read preexisting logs, configure the argument 'start_at' to 'beginning'", "path", path)
-			}
-		}
+
 		file, err := os.Open(path) // #nosec - operator must read in files defined by user
 		if err != nil {
 			f.Errorw("Failed to open file", zap.Error(err))
@@ -205,6 +195,7 @@ OUTER:
 	// here we got all eligible files to process, and need to compare of what we had in previous poll
 	readers := make([]*Reader, 0, len(fps))
 	for i := 0; i < len(fps); i++ {
+
 		reader, err := f.newReader(ctx, files[i], fps[i])
 		if err != nil {
 			f.Errorw("Failed to create reader", zap.Error(err))
@@ -218,9 +209,24 @@ OUTER:
 
 func (f *InputOperator) newReader(ctx context.Context, file *os.File, fp *Fingerprint) (*Reader, error) {
 
+	reader, ok := f.findFingerprintMatch(fp)
+	if ok {
+		return reader, nil
+	}
 	newReader, err := f.NewReader(file.Name(), file, fp, f.persister, f.FlushingInterval)
 	if f.labelRegex != nil {
 		newReader.ReadHeaders(ctx)
 	}
 	return newReader, err
+}
+
+func (f *InputOperator) findFingerprintMatch(fp *Fingerprint) (*Reader, bool) {
+	// Iterate backwards to match newest first
+	for i := len(f.prevReaders) - 1; i >= 0; i-- {
+		oldReader := f.prevReaders[i]
+		if fp.StartsWith(oldReader.Fingerprint) {
+			return oldReader, true
+		}
+	}
+	return nil, false
 }
