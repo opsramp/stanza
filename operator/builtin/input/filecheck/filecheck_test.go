@@ -15,6 +15,7 @@ import (
 	"github.com/opsramp/stanza/operator/helper"
 	"github.com/opsramp/stanza/testutil"
 	"github.com/stretchr/testify/require"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 func TestCleanStop(t *testing.T) {
@@ -661,79 +662,6 @@ func TestDeleteAfterRead(t *testing.T) {
 	}
 }
 
-func TestDeleteAfterRead_SkipPartials(t *testing.T) {
-	t.Parallel()
-
-	bytesPerLine := 100
-	shortFileLine := stringWithLength(bytesPerLine - 1)
-	longFileLines := 100000
-	longFileSize := longFileLines * bytesPerLine
-
-	operator, logReceived, tempDir := newTestFileOperator(t,
-		func(cfg *InputConfig) {
-			cfg.DeleteAfterRead = true
-		},
-		func(out *testutil.FakeOutput) {
-			out.Received = make(chan *entry.Entry, longFileLines)
-		},
-	)
-	defer operator.Stop()
-
-	shortFile := openTemp(t, tempDir)
-	shortFile.WriteString(shortFileLine + "\n")
-	require.NoError(t, shortFile.Close())
-
-	longFile := openTemp(t, tempDir)
-	for line := 0; line < longFileLines; line++ {
-		longFile.WriteString(stringWithLength(bytesPerLine-1) + "\n")
-	}
-	require.NoError(t, longFile.Close())
-
-	// Verify we have no checkpointed files
-	require.Equal(t, 0, len(operator.knownFiles))
-
-	// Wait until the only line in the short file and
-	// at least one line from the long file have been consumed
-	var shortOne, longOne bool
-	ctx, cancel := context.WithCancel(context.Background())
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		operator.poll(ctx)
-	}()
-
-	for !(shortOne && longOne) {
-		if line := waitForOne(t, logReceived); line.Record == shortFileLine {
-			shortOne = true
-		} else {
-			longOne = true
-		}
-	}
-
-	// Stop consuming before long file has been fully consumed
-	// TODO is there a more robust way to stop after partially reading?
-	cancel()
-	wg.Wait()
-
-	// short file was fully consumed and should have been deleted
-	_, err := os.Stat(shortFile.Name())
-	require.Error(t, err)
-	require.True(t, os.IsNotExist(err))
-
-	// long file was partially consumed and should NOT have been deleted
-	_, err = os.Stat(longFile.Name())
-	require.NoError(t, err)
-
-	// Verify that only long file is remembered and that (0 < offset < fileSize)
-	require.Equal(t, 1, len(operator.knownFiles))
-	reader := operator.knownFiles[0]
-	require.Equal(t, longFile.Name(), reader.file.Name())
-	require.Greater(t, reader.Offset, int64(0))
-	require.Less(t, reader.Offset, int64(longFileSize))
-}
-
 func TestFilenameRecallPeriod(t *testing.T) {
 	t.Parallel()
 
@@ -779,86 +707,6 @@ func TestFilenameRecallPeriod(t *testing.T) {
 
 	// SeenPaths has been purged of ancient files
 	require.Equal(t, 0, len(operator.SeenPaths))
-}
-
-func TestFileReader_FingerprintUpdated(t *testing.T) {
-	t.Parallel()
-
-	operator, logReceived, tempDir := newTestFileOperator(t, nil, nil)
-	defer operator.Stop()
-
-	temp := openTemp(t, tempDir)
-	tempCopy := openFile(t, temp.Name())
-	fp, err := operator.NewFingerprint(temp)
-	require.NoError(t, err)
-
-	reader, err := operator.NewReader(temp.Name(), tempCopy, fp, nil)
-	require.NoError(t, err)
-	defer reader.Close()
-
-	writeString(t, temp, "testlog1\n")
-	reader.ReadToEnd(context.Background())
-	waitForMessage(t, logReceived, "testlog1")
-	require.Equal(t, []byte("testlog1\n"), reader.Fingerprint.FirstBytes)
-}
-
-// Test that a fingerprint:
-// - Starts empty
-// - Updates as a file is read
-// - Stops updating when the max fingerprint size is reached
-// - Stops exactly at max fingerprint size, regardless of content
-func TestFingerprintGrowsAndStops(t *testing.T) {
-	t.Parallel()
-
-	// Use a number with many factors.
-	// Sometimes fingerprint length will align with
-	// the end of a line, sometimes not. Test both.
-	maxFP := 360
-
-	// Use prime numbers to ensure variation in
-	// whether or not they are factors of maxFP
-	lineLens := []int{3, 5, 7, 11, 13, 17, 19, 23, 27}
-
-	for _, lineLen := range lineLens {
-		t.Run(fmt.Sprintf("%d", lineLen), func(t *testing.T) {
-			t.Parallel()
-			operator, _, tempDir := newTestFileOperator(t, func(cfg *InputConfig) {
-				cfg.FingerprintSize = helper.ByteSize(maxFP)
-			}, nil)
-			defer operator.Stop()
-
-			temp := openTemp(t, tempDir)
-			tempCopy := openFile(t, temp.Name())
-			fp, err := operator.NewFingerprint(temp)
-			require.NoError(t, err)
-			require.Equal(t, []byte(""), fp.FirstBytes)
-
-			reader, err := operator.NewReader(temp.Name(), tempCopy, fp, nil)
-			require.NoError(t, err)
-			defer reader.Close()
-
-			// keep track of what has been written to the file
-			fileContent := []byte{}
-
-			// keep track of expected fingerprint size
-			expectedFP := 0
-
-			// Write lines until file is much larger than the length of the fingerprint
-			for len(fileContent) < 2*maxFP {
-				expectedFP += lineLen
-				if expectedFP > maxFP {
-					expectedFP = maxFP
-				}
-
-				line := stringWithLength(lineLen-1) + "\n"
-				fileContent = append(fileContent, []byte(line)...)
-
-				writeString(t, temp, line)
-				reader.ReadToEnd(context.Background())
-				require.Equal(t, fileContent[:expectedFP], reader.Fingerprint.FirstBytes)
-			}
-		})
-	}
 }
 
 func TestEncodings(t *testing.T) {
@@ -953,23 +801,46 @@ func TestEncodings(t *testing.T) {
 }
 
 func TestCreateTempLog(t *testing.T) {
-	f, err := os.Create("/Users/antonchirikalov/dev/github.com/opsramp/stanza/test/test3.log")
+	f, err := os.Create("/Users/antonchirikalov/dev/github.com/opsramp/stanza/test/test_bench.log")
 	defer f.Close()
 	require.NoError(t, err)
 
-	for i := 1; i < 10; i++ {
+	for i := 1; i < 100000; i++ {
 		writeString(t, f, "["+time.Now().String()+"] This is TEST3 log record # "+strconv.Itoa(i)+"\n")
 	}
 
 }
 
-func TestAddTempLog(t *testing.T) {
-	f, err := os.OpenFile("/Users/antonchirikalov/dev/github.com/opsramp/stanza/test1.log", os.O_APPEND|os.O_WRONLY, 0644)
-	defer f.Close()
+func TestLevelDB(t *testing.T) {
+	db, err := leveldb.OpenFile("./test/foo.db", nil)
+	if err != nil {
+		require.NoError(t, err)
+	}
+	defer db.Close()
 
-	require.NoError(t, err)
-	for i := 500; i < 1000; i++ {
-		writeString(t, f, "["+time.Now().String()+"] This is test ANTON log record # "+strconv.Itoa(i)+"\n")
+	//	err = db.Put([]byte("fizz"), []byte("buzz"), nil)
+	//	err = db.Put([]byte("fizz2"), []byte("buzz2"), nil)
+	//	err = db.Put([]byte("fizz3"), []byte("buzz3"), nil)
+
+	iter := db.NewIterator(nil, nil)
+	for iter.Next() {
+		key := iter.Key()
+		value := iter.Value()
+		fmt.Printf("key: %s | value: %s\n", key, value)
 	}
 
+	for ok := iter.Seek([]byte("fizz2")); ok; ok = iter.Next() {
+		key := iter.Key()
+		value := iter.Value()
+		fmt.Printf("key: %s | value: %s\n", key, value)
+	}
+
+	for ok := iter.First(); ok; ok = iter.Next() {
+		key := iter.Key()
+		value := iter.Value()
+		fmt.Printf("key: %s | value: %s\n", key, value)
+	}
+
+	iter.Release()
+	err = iter.Error()
 }

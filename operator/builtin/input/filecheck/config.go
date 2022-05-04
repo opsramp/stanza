@@ -2,7 +2,7 @@ package filecheck
 
 import (
 	"fmt"
-	"github.com/opsramp/stanza/operator/builtin/cachedpersister"
+	"github.com/opsramp/stanza/operator/builtin/leveldbpersister"
 	"regexp"
 	"time"
 
@@ -45,9 +45,9 @@ func NewInputConfig(operatorID string) *InputConfig {
 
 // InputConfig is the configuration of a file input operator
 type InputConfig struct {
-	helper.InputConfig `yaml:",inline"`
-	Finder             `mapstructure:",squash" yaml:",inline"`
-
+	helper.InputConfig      `yaml:",inline"`
+	Finder                  `mapstructure:",squash" yaml:",inline"`
+	Database                string                 `json:"database,omitempty" yaml:"database,omitempty"`
 	PollInterval            helper.Duration        `json:"poll_interval,omitempty"               yaml:"poll_interval,omitempty"`
 	FlushingInterval        helper.Duration        `json:"flushing_interval,omitempty"           yaml:"flushing_interval,omitempty"`
 	CheckpointAt            int64                  `json:"checkpoint_at,omitempty"               yaml:"checkpoint_at,omitempty"`
@@ -172,11 +172,18 @@ func (c InputConfig) Build(context operator.BuildContext) ([]operator.Operator, 
 		filePathResolvedField = entry.NewLabelField("file_path_resolved")
 	}
 
+	var persister Persister
+	if len(c.Database) > 0 {
+		persister = leveldbpersister.NewLevelDBPersister(c.ID(), c.FlushingInterval, c.Database)
+	} else {
+		persister = leveldbpersister.NewStubDBPersister()
+	}
+
 	op := &InputOperator{
 		InputOperator:         inputOperator,
 		finder:                c.Finder,
 		SplitFunc:             splitFunc,
-		persister:             cachedpersister.NewPersister(context.Database, c.ID(), c.FlushingInterval),
+		persister:             persister,
 		PollInterval:          c.PollInterval.Raw(),
 		CheckpointAt:          c.CheckpointAt,
 		FlushingInterval:      c.FlushingInterval,

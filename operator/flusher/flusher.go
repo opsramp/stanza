@@ -24,6 +24,7 @@ type Config struct {
 	MaxElapsedTime   time.Duration `json:"max_elapsed_time" yaml:"max_elapsed_time"`
 }
 
+// Flusher -
 type Flusher struct {
 	chunkIDCounter uint64
 	ctx            context.Context

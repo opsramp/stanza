@@ -6,13 +6,14 @@ Major difference comparing to `file_input` - this input supports checkpointing
 Checkpoints can be configured by amount of tokens (logs) or/and by flushing interval
 ### Configuration Fields
 
-| Field                        | Default          | Description                                                                                                                                                                                                                                                             |
-|------------------------------|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `id`                         | `file_input`     | A unique identifier for the operator                                                                                                                                                                                                                                    |
-| `output`                     | Next in pipeline | The connected operator(s) that will receive all outbound entries                                                                                                                                                                                                        |
-| `include`                    | required         | A list of file glob patterns that match the file paths to be read                                                                                                                                                                                                       |
-| `exclude`                    | []               | A list of file glob patterns to exclude from reading                                                                                                                                                                                                                    |
-| `poll_interval`              | 200ms            | The duration between filesystem polls                                                                                                                                                                                                                                   |
+| Field           | Default          | Description                                                             |
+|-----------------|------------------|-------------------------------------------------------------------------|
+| `id`            | `file_input`     | A unique identifier for the operator                                    |
+| `output`        | Next in pipeline | The connected operator(s) that will receive all outbound entries        |
+| `include`       | required         | A list of file glob patterns that match the file paths to be read       |
+| `exclude`       | []               | A list of file glob patterns to exclude from reading                    |
+| `poll_interval` | 200ms            | The duration between filesystem polls                                   |
+| `database`      | empty            | database file for levelDB. if empty, stub will be used (no checkpoints) |
 | `checkpoint_at`              | no checkpointing | Checkpoint after N log records                                                                                                                                                                                                                                          |
 | `flushing_interval`          | infinite         | Time elapsed between checkpoints                                                                                                                                                                                                                                        |
 | `multiline`                  |                  | A `multiline` configuration block. See below for details                                                                                                                                                                                                                |

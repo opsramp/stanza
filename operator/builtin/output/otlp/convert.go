@@ -18,7 +18,7 @@ func buildProtoRequest(entries []*entry.Entry) otlpgrpc.LogsRequest {
 	for _, value := range entries {
 		// building a unique key based on resource label values
 		keys := []string{}
-		for labelKey, _ := range value.Resource {
+		for labelKey := range value.Resource {
 			keys = append(keys, labelKey)
 		}
 		sort.Strings(keys)
@@ -74,27 +74,27 @@ func convertEntryToLogRecord(entry *entry.Entry, dest pdata.LogRecord) {
 }
 
 func insertToAttributeVal(record interface{}, resourceLabels, logLabels map[string]string, dest pdata.AttributeValue) {
-	bodyJson := map[string]interface{}{}
+	bodyJSON := map[string]interface{}{}
 
 	// adding resourceLabels and logLabels to Body
 	for key, value := range resourceLabels {
-		bodyJson[key] = value
+		bodyJSON[key] = value
 	}
 	for key, value := range logLabels {
-		bodyJson[key] = value
+		bodyJSON[key] = value
 	}
 
 	switch t := record.(type) {
 	case []byte:
-		bodyJson["message"] = string(t)
+		bodyJSON["message"] = string(t)
 	case map[string]interface{}:
 		b, _ := json.Marshal(t)
-		bodyJson["message"] = string(b)
+		bodyJSON["message"] = string(b)
 	default:
-		bodyJson["message"] = fmt.Sprintf("%v", t)
+		bodyJSON["message"] = fmt.Sprintf("%v", t)
 	}
 
-	b, _ := json.Marshal(bodyJson)
+	b, _ := json.Marshal(bodyJSON)
 	dest.SetStringVal(string(b))
 }
 

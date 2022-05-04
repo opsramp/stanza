@@ -47,6 +47,7 @@ func (f *InputOperator) resolveFileLabels(path string) *fileLabels {
 	}
 }
 
+// FileIdentifier -
 type FileIdentifier struct {
 	FingerPrint *Fingerprint
 	Offset      int64
@@ -134,7 +135,10 @@ type consumerFunc func(context.Context, []byte) error
 
 // ReadToEnd will read until the end of the file
 func (r *Reader) ReadToEnd(ctx context.Context) {
+	//start := time.Now()
 	r.readFile(ctx, r.emit)
+	//elapsed := time.Since(start)
+	//fmt.Printf("Read took %s", elapsed)
 }
 
 // ReadHeaders will read a files headers
@@ -194,7 +198,6 @@ func (r *Reader) readFile(ctx context.Context, consumer consumerFunc) {
 				checkpointCounter = 0
 			}
 		}
-
 	}
 
 	// when file completely read, we need to save offset
