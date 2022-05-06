@@ -40,6 +40,7 @@ type InputOperator struct {
 
 	CheckpointAt     int64
 	FlushingInterval helper.Duration
+	Delay            helper.Duration
 
 	fingerprintSize int
 
@@ -68,6 +69,10 @@ func (f *InputOperator) Stop() error {
 	f.wg.Wait()
 	for _, reader := range f.prevReaders {
 		reader.Close()
+	}
+
+	if err := f.persister.Close(); err != nil {
+		f.Error(err)
 	}
 	f.cancel = nil
 	return nil

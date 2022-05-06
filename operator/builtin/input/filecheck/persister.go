@@ -4,4 +4,5 @@ package filecheck
 type Persister interface {
 	Get(key string) []byte
 	Put(key string, value []byte) error
+	Close() error
 }

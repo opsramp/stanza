@@ -201,3 +201,7 @@ wix-test-uninstall: workdir = "build/windows"
 wix-test-uninstall:
 	cd $(workdir) && vagrant winrm -c "cinc-auditor exec C:/vagrant\test\uninstall.rb"
 
+.PHONY: build-log-agent
+build-log-agent:
+	GOOS=darwin GOARCH=amd64 go build -o log-agent ./cmd/stanza
+
