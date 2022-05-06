@@ -15,16 +15,17 @@ type LevelDBPersister struct {
 }
 
 // NewLevelDBPersister constructor
-func NewLevelDBPersister(scope string, flushingInterval helper.Duration, databaseFile string) *LevelDBPersister {
+func NewLevelDBPersister(scope string, flushingInterval helper.Duration, databaseFile string) (*LevelDBPersister, error) {
 	db, err := leveldb.OpenFile(databaseFile, nil)
 	if err != nil {
-		return nil
+		return nil, err
 	}
+
 	return &LevelDBPersister{
 		db:               db,
 		scope:            scope,
 		flushingInterval: flushingInterval.Duration,
-	}
+	}, nil
 }
 
 // Put -
@@ -39,6 +40,10 @@ func (b *LevelDBPersister) Get(key string) []byte {
 		return nil
 	}
 	return value
+}
+
+func (b *LevelDBPersister) Close() error {
+	return b.db.Close()
 }
 
 // StubDBPersister empty database implementaton
@@ -56,5 +61,9 @@ func (b *StubDBPersister) Put(key string, value []byte) error {
 
 // Get -
 func (b *StubDBPersister) Get(key string) []byte {
+	return nil
+}
+
+func (b *StubDBPersister) Close() error {
 	return nil
 }

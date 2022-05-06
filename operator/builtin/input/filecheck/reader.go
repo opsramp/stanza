@@ -198,6 +198,9 @@ func (r *Reader) readFile(ctx context.Context, consumer consumerFunc) {
 				checkpointCounter = 0
 			}
 		}
+		if r.fileInput.Delay.Duration > 0 {
+			<-time.After(r.fileInput.Delay.Raw())
+		}
 	}
 
 	// when file completely read, we need to save offset

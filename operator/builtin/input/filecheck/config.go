@@ -2,13 +2,15 @@ package filecheck
 
 import (
 	"fmt"
-	"github.com/opsramp/stanza/operator/builtin/leveldbpersister"
+	"os"
 	"regexp"
 	"time"
 
 	"github.com/bmatcuk/doublestar/v2"
+	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/opsramp/stanza/entry"
 	"github.com/opsramp/stanza/operator"
+	"github.com/opsramp/stanza/operator/builtin/leveldbpersister"
 	"github.com/opsramp/stanza/operator/helper"
 )
 
@@ -51,6 +53,7 @@ type InputConfig struct {
 	PollInterval            helper.Duration        `json:"poll_interval,omitempty"               yaml:"poll_interval,omitempty"`
 	FlushingInterval        helper.Duration        `json:"flushing_interval,omitempty"           yaml:"flushing_interval,omitempty"`
 	CheckpointAt            int64                  `json:"checkpoint_at,omitempty"               yaml:"checkpoint_at,omitempty"`
+	Delay                   helper.Duration        `json:"delay,omitempty" yaml:"delay,omitempty"`
 	Multiline               helper.MultilineConfig `json:"multiline,omitempty"                   yaml:"multiline,omitempty"`
 	IncludeFileName         bool                   `json:"include_file_name,omitempty"           yaml:"include_file_name,omitempty"`
 	IncludeFilePath         bool                   `json:"include_file_path,omitempty"           yaml:"include_file_path,omitempty"`
@@ -172,20 +175,14 @@ func (c InputConfig) Build(context operator.BuildContext) ([]operator.Operator, 
 		filePathResolvedField = entry.NewLabelField("file_path_resolved")
 	}
 
-	var persister Persister
-	if len(c.Database) > 0 {
-		persister = leveldbpersister.NewLevelDBPersister(c.ID(), c.FlushingInterval, c.Database)
-	} else {
-		persister = leveldbpersister.NewStubDBPersister()
-	}
-
 	op := &InputOperator{
 		InputOperator:         inputOperator,
 		finder:                c.Finder,
 		SplitFunc:             splitFunc,
-		persister:             persister,
+		persister:             initPersister(c, inputOperator),
 		PollInterval:          c.PollInterval.Raw(),
 		CheckpointAt:          c.CheckpointAt,
+		Delay:                 c.Delay,
 		FlushingInterval:      c.FlushingInterval,
 		FilePathField:         filePathField,
 		FileNameField:         fileNameField,
@@ -205,4 +202,47 @@ func (c InputConfig) Build(context operator.BuildContext) ([]operator.Operator, 
 	}
 
 	return []operator.Operator{op}, nil
+}
+
+func initPersister(c InputConfig, op helper.InputOperator) Persister {
+	if len(c.Database) > 0 {
+		persister, err := leveldbpersister.NewLevelDBPersister(c.ID(), c.FlushingInterval, c.Database)
+
+		// this is workaround for the cases when we get `resource not available` error after dynamic
+		// reconfiguration, because of db file lock
+		if err != nil {
+
+			b := &backoff.ExponentialBackOff{
+				InitialInterval:     200 * time.Millisecond,
+				RandomizationFactor: backoff.DefaultRandomizationFactor,
+				Multiplier:          backoff.DefaultMultiplier,
+				MaxInterval:         1 * time.Second,
+				MaxElapsedTime:      5 * time.Second,
+				Stop:                backoff.Stop,
+				Clock:               backoff.SystemClock,
+			}
+			b.Reset()
+
+			for {
+				waitTime := b.NextBackOff()
+				op.Errorf("database connection failure, trying to reconnect in %q", waitTime)
+				if waitTime == b.Stop {
+					op.Errorw("Reached max backoff time for database connection", "file", c.Database)
+					os.Exit(1)
+				}
+
+				<-time.After(waitTime)
+				persister, err = leveldbpersister.NewLevelDBPersister(c.ID(), c.FlushingInterval, c.Database)
+				if err != nil {
+					continue
+				}
+				op.Debugf("database connection to %q established", c.Database)
+				return persister
+			}
+		}
+		return persister
+	}
+	op.Debugf("stub database is used")
+	return leveldbpersister.NewStubDBPersister()
+
 }
